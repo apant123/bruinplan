@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+backend\api\views\__pycache__
+backend\api\urls\__pycache__

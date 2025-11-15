@@ -16,5 +16,7 @@ def list_subjects(request):
                     "created_at": subject.created_at,
                     "updated_at": subject.updated_at,})
         
-        return Response({"subjects": data})
+        return Response({"subjects": data}) 
+    
+    
     
