@@ -24,3 +24,7 @@ yarn-error.log*
 
 backend\api\views\__pycache__
 backend\api\urls\__pycache__
+backend/api/migrations/__pycache__/0001_initial.cpython-312.pyc
+backend/api/models/__pycache__/course.cpython-312.pyc
+backend/api/urls/__pycache__/courses.cpython-312.pyc
+backend/api/views/__pycache__/courses.cpython-312.pyc
