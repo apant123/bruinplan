@@ -1,4 +1,6 @@
 from django.db import models
+import uuid
+
 
 class User(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -14,3 +16,26 @@ class User(models.Model):
     class Meta:
         db_table = "users"      # EXACT Supabase table name
         managed = False         # Django won't create/migrate this table
+
+class UserProfile(models.Model):
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    name = models.TextField(null=True)
+    major = models.TextField(null=True)
+    minor = models.TextField(null=True)
+
+    expected_grad = models.TextField(null=True)
+    year = models.IntegerField(null=True)
+
+    completed_lower_div = models.IntegerField(null=True)
+    completed_upper_div = models.IntegerField(null=True)
+
+    gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True)
+
+    created_at = models.DateTimeField(null=True)
+    updated_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "user_profiles"   
+        managed = False              
+    
