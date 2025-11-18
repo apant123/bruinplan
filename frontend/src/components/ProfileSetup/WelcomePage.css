@@ -1,0 +1,84 @@
+.welcome-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.25);
+  padding: 50px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.welcome-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 32px;
+  color: #000;
+  margin: 0;
+}
+
+.welcome-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #525151;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.setup-info-box {
+  background-color: #e3f2fd;
+  border-radius: 10px;
+  padding: 32px 40px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.setup-info-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #247ad6;
+  margin: 0 0 20px 0;
+}
+
+.setup-info-list {
+  list-style: none;
+  padding-left: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setup-info-list li {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #247ad6;
+  position: relative;
+}
+
+.setup-info-list li::before {
+  content: '';
+  display: none;
+}
+
+.primary-button {
+  background-color: #247ad6;
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  padding: 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+
+.primary-button:hover {
+  background-color: #1e6bc4;
+}
