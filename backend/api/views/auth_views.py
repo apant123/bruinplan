@@ -1,25 +1,44 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from api.models.users import UserProfile
-import jwt
 from dotenv import load_dotenv
+from django.db import IntegrityError
+import jwt
 import os
 
 
 @api_view(["POST"])
 def createUser(request):
 
+
+    record = request.data.get("record")
+
+    if not record.get("id") or not record.get("created_at"):
+        return Response({
+            "error": "webhook payload missing id or crated_at field"
+        }, status = 400)
+
     newUser = UserProfile(
-        uuid = request.data.get("user").get("id")
+        uuid = record.get("id"),
+        created_at = record.get("created_at")
     )
-    newUser.save()
+
+    try:
+        newUser.save()
+    except IntegrityError:
+        return Response({
+            "uid": newUser.uuid,
+            "message": "User with uuid already exists"
+        }, status = 400)
+    
     return Response({
-        "uuid": newUser.uuid       
+        "uuid": newUser.uuid,
+        "created_at": newUser.created_at
     }, status = 201)
 
 
 @api_view(["GET"])
-def loggedInUser(request):
+def getProfile(request):
 
     load_dotenv()
     jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
@@ -32,9 +51,11 @@ def loggedInUser(request):
         jwt_val = auth_header.split(" ", 1)[1]
 
         #HS256 is what supabase supports as JWT algo
-        payload = jwt.decode(jwt_val, jwt_secret, algorithms=["HS256"])
+        payload = jwt.decode(jwt_val, jwt_secret, algorithms=["HS256"], audience="authenticated")
     except:
-        return Response({"invalid jwt or invalid jwt format"}, status = 401)
+        return Response({
+            "error": "invalid jwt or invalid jwt format",
+            }, status = 401)
     
     user_uuid = payload["sub"]
 
@@ -50,8 +71,8 @@ def loggedInUser(request):
         "minor": profile.minor,
         "expected_grad": profile.expected_grad,
         "year": profile.year,
-        "completed_lower_div": profile.completed_lower_div,
-        "completed_upper_div": profile.completed_upper_div,
+        "completed_lower_div_units": profile.completed_lower_div_units,
+        "completed_upper_div_units": profile.completed_upper_div_units,
         "gpa": profile.gpa,
         "created_at": profile.created_at,
         "updated_at": profile.updated_at
