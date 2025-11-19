@@ -65,8 +65,8 @@ function ConnectDars({ onNext, onBack }) {
           <button type="button" className="secondary-button" onClick={onBack}>
             Back
           </button>
-          <button type="submit" className="complete-button">
-            Complete Setup
+          <button type="submit" className="next-button">
+            Next
           </button>
         </div>
       </form>

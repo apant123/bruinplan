@@ -137,3 +137,15 @@
 .next-button:not(:disabled):hover {
   background-color: #1e6bc4;
 }
+
+.input-error {
+  border-color: #dc3545 !important;
+}
+
+.error-message {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #dc3545;
+  margin-top: 4px;
+  display: block;
+}

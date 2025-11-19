@@ -19,7 +19,6 @@ function ProfileSetup() {
     window.location.hash = 'profile-setup';
   }, []);
   const [profileData, setProfileData] = useState({
-    about: '',
     firstName: '',
     lastName: '',
     email: '',

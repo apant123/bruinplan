@@ -79,10 +79,10 @@ function ExpectedGraduation({ onNext, onBack }) {
           </button>
           <button
             type="submit"
-            className="next-button"
+            className="complete-button"
             disabled={!isFormValid}
           >
-            Next
+            Complete Setup
           </button>
         </div>
       </form>

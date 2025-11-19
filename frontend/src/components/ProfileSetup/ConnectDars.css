@@ -2,17 +2,18 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.25);
-  padding: 49px 70px 60px;
+  padding: 50px 60px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   max-width: 1000px;
+  width: 100%;
 }
 
 .connect-dars-title {
   font-family: 'Inter', sans-serif;
   font-weight: 600;
-  font-size: 36px;
+  font-size: 32px;
   color: #000;
   margin: 0;
 }
@@ -20,9 +21,9 @@
 .connect-dars-subtitle {
   font-family: 'Inter', sans-serif;
   font-weight: 400;
-  font-size: 18px;
+  font-size: 16px;
   color: #525151;
-  margin: 0 0 20px 0;
+  margin: 0 0 24px 0;
 }
 
 .connect-dars-form {
@@ -107,20 +108,44 @@
   margin-left: 32px;
 }
 
-.complete-button {
+.form-buttons {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.secondary-button {
   flex: 1;
-  background-color: #22c55e;
+  background-color: #e3f2fd;
+  color: #247ad6;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  padding: 16px;
+  border: 2px solid #247ad6;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondary-button:hover {
+  background-color: #d1e9fc;
+}
+
+.next-button {
+  flex: 1;
+  background-color: #247ad6;
   color: white;
   font-family: 'Inter', sans-serif;
   font-weight: 500;
   font-size: 20px;
-  padding: 18px;
+  padding: 16px;
   border: none;
   border-radius: 10px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.complete-button:hover {
-  background-color: #16a34a;
+.next-button:hover {
+  background-color: #1e6bc4;
 }

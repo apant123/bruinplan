@@ -3,11 +3,11 @@ import './BasicInformation.css';
 
 function BasicInformation({ onNext, onBack }) {
   const [formData, setFormData] = useState({
-    about: '',
     firstName: '',
     lastName: '',
     email: ''
   });
+  const [emailError, setEmailError] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -16,9 +16,33 @@ function BasicInformation({ onNext, onBack }) {
     });
   };
 
+  const validateEmail = (email) => {
+    const validDomains = ['@g.ucla.edu', '@ucla.edu'];
+    return validDomains.some(domain => email.endsWith(domain));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validate UCLA email
+    if (!validateEmail(formData.email)) {
+      setEmailError('Please use a valid UCLA email (@g.ucla.edu or @ucla.edu)');
+      return;
+    }
+
+    setEmailError('');
     onNext(formData);
+  };
+
+  const handleEmailChange = (e) => {
+    setFormData({
+      ...formData,
+      email: e.target.value
+    });
+    // Clear error when user types
+    if (emailError) {
+      setEmailError('');
+    }
   };
 
   const isFormValid = formData.firstName && formData.lastName && formData.email;
@@ -29,16 +53,6 @@ function BasicInformation({ onNext, onBack }) {
       <p className="basic-info-subtitle">Tell us a bit about yourself</p>
 
       <form className="basic-info-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <textarea
-            name="about"
-            className="form-textarea"
-            rows="3"
-            value={formData.about}
-            onChange={handleChange}
-          />
-        </div>
-
         <div className="form-group">
           <label className="form-label">First Name *</label>
           <input
@@ -70,12 +84,13 @@ function BasicInformation({ onNext, onBack }) {
           <input
             type="email"
             name="email"
-            className="form-input"
+            className={`form-input ${emailError ? 'input-error' : ''}`}
             placeholder="youremail@g.ucla.edu"
             value={formData.email}
-            onChange={handleChange}
+            onChange={handleEmailChange}
             required
           />
+          {emailError && <span className="error-message">{emailError}</span>}
         </div>
 
         <div className="form-buttons">
