@@ -31,5 +31,5 @@ def users(request, uuid = None):
             "id": new_user.id,
             "email": new_user.email,
             "auth_provider": new_user.auth_provider
-            })
+        })
             

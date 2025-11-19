@@ -3,31 +3,55 @@ from rest_framework.response import Response
 from api.models.users import UserProfile
 from dotenv import load_dotenv
 from django.db import IntegrityError
+from supabase import create_client, Client, AuthApiError
 import jwt
 import os
 
-
+load_dotenv()
 @api_view(["POST"])
 def createUser(request):
+    #create user in supabase auth users table, then create corrosponding user in userprofile table with matching uid and created_at field
+    
+    SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
 
+    email = request.data.get("email")
+    password = request.data.get("password")
 
-    record = request.data.get("record")
+    if email is None or password is None:
+        return Response({"Need email and password to sign up"}, status = 400)
+    
+    #remove accidental trailing or leading whitespace for entries; just good hygeine
+    email, password = email.strip(), password.strip()
 
-    if not record.get("id") or not record.get("created_at"):
-        return Response({
-            "error": "webhook payload missing id or crated_at field"
-        }, status = 400)
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+    try:
+        response = supabase.auth.admin.create_user(
+            {
+                "email": email,
+                "password": password
+                
+            }
+        )
+    except AuthApiError:
+        return Response({"error": "user with this email already exists"}, status = 400)
+    
+    if response is None or response.user is None:
+        return Response({"error": "unexpected or no response from Supabase"}, status = 400)
+
+    id = response.user.id
+    creation_date = response.user.created_at
     newUser = UserProfile(
-        uuid = record.get("id"),
-        created_at = record.get("created_at")
+        uuid = id,
+        created_at = creation_date
     )
 
     try:
         newUser.save()
     except IntegrityError:
         return Response({
-            "uid": newUser.uuid,
+            "uuid": newUser.uuid,
             "message": "User with uuid already exists"
         }, status = 400)
     
@@ -37,10 +61,12 @@ def createUser(request):
     }, status = 201)
 
 
+
 @api_view(["GET"])
 def getProfile(request):
+    #validate JWT from supabase auth, then return values for uid in userprofile table
 
-    load_dotenv()
+    
     jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
     auth_header = request.headers.get("Authorization")
 
