@@ -23,3 +23,25 @@ def list_courses(request, subject_area_id = None):
                 "updated_at": course.updated_at,
                 "requisites_parsed": course.requisites_parsed,})
         return Response({"courses": data})
+    
+@api_view(["GET"])
+def course_prereqs(request, course_id = None):
+    if request.method == "GET":
+        if not course_id:
+            #error
+            pass
+        try:
+            reqs = Course.objects.values_list("requisites_parsed", flat=True).get(id=course_id)
+        except Course.DoesNotExist:
+            reqs = None
+        
+        if reqs is None:
+            reqs = {}
+
+        return Response({
+            "course_id": course_id,
+            "requisites": reqs
+        })
+         
+
+        

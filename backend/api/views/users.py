@@ -5,7 +5,7 @@ from api.models import User
 @api_view(["GET", "POST", "PUT", "DELETE"])
 def users(request, uuid = None):
     if request.method == "GET":
-        if not iuud:
+        if not uuid:
             users = User.objects.all().order_by("uuid")
         else:
             users = User.objects.all().filter(uuid=uuid)
