@@ -5,14 +5,20 @@
 /.pnp
 .pnp.js
 
+
 # testing
 /coverage
 
 # production
 /build
 
+#Python
+__pycache__/
+*.py[cod]
+
 # misc
 .DS_Store
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -22,10 +28,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-backend\api\views\__pycache__
-backend\api\urls\__pycache__
 backend/api/migrations/__pycache__/0001_initial.cpython-312.pyc
 backend/api/models/__pycache__/course.cpython-312.pyc
 backend/api/urls/__pycache__/courses.cpython-312.pyc
 backend/api/views/__pycache__/courses.cpython-312.pyc
 *.pyc
+
+
+backend\api\__pycache__
+backend\api\urls\__pycache__
+backend\api\views\__pycache__
+backend\backend\__pycache__
