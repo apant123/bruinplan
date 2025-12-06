@@ -1,5 +1,6 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.exceptions import AuthenticationFailed
 from api.models.users import UserProfile
 from dotenv import load_dotenv
 from django.db import IntegrityError
@@ -8,6 +9,29 @@ import jwt
 import os
 
 load_dotenv()
+
+def verifyUser(request):
+    '''
+    the jwt verification function to be called in secure routes
+    '''
+
+    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        raise AuthenticationFailed("No authorization provided")
+    
+    try:
+        jwt_val = auth_header.split(" ", 1)[1]
+
+        #HS256 is what supabase supports as JWT algo
+        payload = jwt.decode(jwt_val, jwt_secret, algorithms=["HS256"], audience="authenticated")
+    except Exception:
+        raise AuthenticationFailed("invalid authentication token or malformed format")
+    
+    return payload["sub"]
+    
+
 @api_view(["POST"])
 def createUser(request):
     #create user in supabase auth users table, then create corrosponding user in userprofile table with matching uid and created_at field
@@ -66,24 +90,7 @@ def createUser(request):
 def getProfile(request):
     #validate JWT from supabase auth, then return values for uid in userprofile table
 
-    
-    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
-    auth_header = request.headers.get("Authorization")
-
-    if not auth_header:
-        return Response({"No Authorization Provided"}, status = 401)
-    
-    try:
-        jwt_val = auth_header.split(" ", 1)[1]
-
-        #HS256 is what supabase supports as JWT algo
-        payload = jwt.decode(jwt_val, jwt_secret, algorithms=["HS256"], audience="authenticated")
-    except:
-        return Response({
-            "error": "invalid jwt or invalid jwt format",
-            }, status = 401)
-    
-    user_uuid = payload["sub"]
+    user_uuid = verifyUser(request)
 
     try:
         profile = UserProfile.objects.get(uuid=user_uuid)
@@ -103,5 +110,7 @@ def getProfile(request):
         "created_at": profile.created_at,
         "updated_at": profile.updated_at
     }, status = 200)
+
+
 
 
