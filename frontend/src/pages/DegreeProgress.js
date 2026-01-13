@@ -126,8 +126,8 @@ function DegreeProgress() {
               </svg>
             </div>
             <div className="expected-grad">Expected: Spring 2026</div>
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill"></div>
+            <div className="graduation-progress-bar-container">
+              <div className="graduation-progress-bar-fill"></div>
             </div>
             <p className="projection-text">On track to graduate in 4 years based on current pace.</p>
           </div>
