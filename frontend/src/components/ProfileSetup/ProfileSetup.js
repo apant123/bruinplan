@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import NavBar from '../NavBar';
 import ProgressBar from './ProgressBar';
 import WelcomePage from './WelcomePage';
@@ -11,13 +13,11 @@ import UploadModal from './UploadModal';
 import './ProfileSetup.css';
 
 function ProfileSetup() {
+  const navigate = useNavigate();
+  const { signup } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // Set URL hash on component mount
-  useEffect(() => {
-    window.location.hash = 'profile-setup';
-  }, []);
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
@@ -39,9 +39,17 @@ function ProfileSetup() {
     if (currentStep === 5) {
       const finalData = { ...profileData, ...data };
       console.log('Profile setup completed!', finalData);
-      alert('Profile setup completed! Welcome to Bruin Plan! 🎓');
-      // Keep on same page or reset to step 1
-      setCurrentStep(1);
+
+      // Create user account with the profile data
+      signup({
+        ...finalData,
+        darsConnected: finalData.darsOption === 'sync',
+        units: 0,
+        gpa: 0.0
+      });
+
+      // Navigate to profile page
+      navigate('/profile');
     } else {
       setCurrentStep(currentStep + 1);
     }
