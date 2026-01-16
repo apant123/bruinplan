@@ -1,0 +1,123 @@
+.academic-program-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.25);
+  padding: 50px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.academic-program-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 32px;
+  color: #000;
+  margin: 0;
+}
+
+.academic-program-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  font-style: italic;
+  color: #525151;
+  margin: 0 0 24px 0;
+}
+
+.academic-program-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  font-style: italic;
+  color: #000;
+}
+
+.form-select {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-style: italic;
+  padding: 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  background-color: #fff;
+  color: #000;
+  transition: border-color 0.2s;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23525151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #247ad6;
+}
+
+.form-select option {
+  font-style: normal;
+  color: #000;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.secondary-button {
+  flex: 1;
+  background-color: #e3f2fd;
+  color: #247ad6;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  padding: 16px;
+  border: 2px solid #247ad6;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondary-button:hover {
+  background-color: #d1e9fc;
+}
+
+.next-button {
+  flex: 1;
+  background-color: #c4c4c4;
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  padding: 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: not-allowed;
+  transition: background-color 0.2s;
+}
+
+.next-button:not(:disabled) {
+  background-color: #247ad6;
+  cursor: pointer;
+}
+
+.next-button:not(:disabled):hover {
+  background-color: #1e6bc4;
+}

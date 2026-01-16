@@ -1,0 +1,45 @@
+.profile-setup-container {
+  min-height: 100vh;
+  background-color: #f8f8f8;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-setup-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 30px;
+}
+
+.profile-setup-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+}
+
+.profile-setup-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 50px;
+  color: #247ad6;
+  margin: 0;
+}
+
+.profile-setup-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 27px;
+  color: #9b9b9b;
+  margin: 0;
+}
+
+.profile-setup-card-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}

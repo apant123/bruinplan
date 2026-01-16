@@ -1,0 +1,151 @@
+.connect-dars-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0px 4px 20px 0px rgba(0, 0, 0, 0.25);
+  padding: 50px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 1000px;
+  width: 100%;
+}
+
+.connect-dars-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 32px;
+  color: #000;
+  margin: 0;
+}
+
+.connect-dars-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  color: #525151;
+  margin: 0 0 24px 0;
+}
+
+.connect-dars-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.radio-options {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.radio-option {
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 24px 28px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: block;
+}
+
+.radio-option input[type="radio"] {
+  display: none;
+}
+
+.radio-option:hover {
+  border-color: #247ad6;
+  background-color: #f8fbff;
+}
+
+.radio-option.selected {
+  border-color: #247ad6;
+  background-color: #f8fbff;
+}
+
+.radio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.radio-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radio-circle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #247ad6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.radio-inner {
+  width: 10px;
+  height: 10px;
+  background-color: #247ad6;
+  border-radius: 50%;
+}
+
+.radio-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #000;
+  margin: 0;
+}
+
+.radio-description {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  color: #525151;
+  margin: 0;
+  margin-left: 32px;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.secondary-button {
+  flex: 1;
+  background-color: #e3f2fd;
+  color: #247ad6;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  padding: 16px;
+  border: 2px solid #247ad6;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.secondary-button:hover {
+  background-color: #d1e9fc;
+}
+
+.next-button {
+  flex: 1;
+  background-color: #247ad6;
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  padding: 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.next-button:hover {
+  background-color: #1e6bc4;
+}
