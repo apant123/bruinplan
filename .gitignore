@@ -39,3 +39,7 @@ backend\api\__pycache__
 backend\api\urls\__pycache__
 backend\api\views\__pycache__
 backend\backend\__pycache__
+
+
+#settings
+backend\backend\settings.py
