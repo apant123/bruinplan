@@ -1,65 +1,95 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../supabaseClient";
+import { apiGetProfile } from "../api/auth"; // GET /api/user/ with Bearer token
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState(null);          // supabase session
+  const [accessToken, setAccessToken] = useState(null);  // JWT
+  const [profile, setProfile] = useState(null);          // from your Django UserProfile
+  const [loading, setLoading] = useState(true);
 
+  const isAuthenticated = !!accessToken;
+
+  // Keep session in sync with Supabase
   useEffect(() => {
-    const storedUser = localStorage.getItem('bruinplan_user');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      setIsAuthenticated(true);
-    }
+    let mounted = true;
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+
+      const sess = data?.session ?? null;
+      setSession(sess);
+      setAccessToken(sess?.access_token ?? null);
+      setLoading(false);
+    })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      setSession(sess);
+      setAccessToken(sess?.access_token ?? null);
+      if (!sess) setProfile(null);
+    });
+
+    return () => {
+      mounted = false;
+      sub?.subscription?.unsubscribe?.();
+    };
   }, []);
 
-  const signup = (userData) => {
-    const userProfile = {
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      email: userData.email,
-      major: userData.major || '',
-      minor: userData.minor || '',
-      graduationYear: userData.graduationYear || '',
-      graduationQuarter: userData.graduationQuarter || '',
-      units: userData.units || 0,
-      gpa: userData.gpa || 0.0,
-      darsConnected: userData.darsConnected || false
-    };
+  // When token exists, fetch backend profile
+  useEffect(() => {
+    if (!accessToken) return;
 
-    localStorage.setItem('bruinplan_user', JSON.stringify(userProfile));
-    setUser(userProfile);
-    setIsAuthenticated(true);
+    (async () => {
+      try {
+        const p = await apiGetProfile(accessToken);
+        setProfile(p);
+      } catch (e) {
+        // If profile doesn't exist yet, that’s fine during onboarding
+        // Just keep profile null and let wizard create/update it.
+        console.warn("Failed to load profile:", e.message);
+      }
+    })();
+  }, [accessToken]);
+
+  // Use Supabase for signup/login (real auth)
+  const signup = async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw new Error(error.message);
+
+    // Depending on Supabase settings, session may be null until email confirm
+    return data;
   };
 
-  const updateProfile = (updates) => {
-    const updatedUser = { ...user, ...updates };
-    localStorage.setItem('bruinplan_user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
+  const login = async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem('bruinplan_user');
-    setUser(null);
-    setIsAuthenticated(false);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
   };
 
   const value = {
-    user,
+    loading,
     isAuthenticated,
+    accessToken,
+    session,
+    profile,
+    setProfile, // wizard will call this after updating backend
     signup,
-    updateProfile,
-    logout
+    login,
+    logout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

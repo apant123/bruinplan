@@ -3,7 +3,7 @@ import uuid
 
 
 class User(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, db_column="uuid", default=uuid.uuid4, editable=False)
 
     email = models.TextField(null=True)
     password_hash = models.TextField(null=True)

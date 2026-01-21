@@ -8,6 +8,10 @@ import ExploreCourses from './pages/ExploreCourses';
 import Plan from './pages/Plan';
 import DegreeProgress from './pages/DegreeProgress';
 import './App.css';
+import OnboardingWizard from "./pages/OnboardingWizard";
+import AuthCallback from "./pages/AuthCallback";
+
+
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -19,8 +23,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/signup" element={isAuthenticated ? <Navigate to="/profile" /> : <SignUp />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/profile" /> : <Login />} />
+      <Route path="/signup" element={isAuthenticated ? <Navigate to="/onboarding" /> : <SignUp />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/onboarding" /> : <Login />} />
+      <Route path="/" element={<Navigate to={isAuthenticated ? "/onboarding" : "/signup"} />} />
       <Route
         path="/profile"
         element={
@@ -54,6 +59,16 @@ function AppRoutes() {
         }
       />
       <Route path="/" element={<Navigate to={isAuthenticated ? "/profile" : "/signup"} />} />
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <OnboardingWizard />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+
     </Routes>
   );
 }

@@ -7,4 +7,5 @@ urlpatterns = [
     path("auth/", include("api.urls.auth_routes")),
     path("courseOfferings/", include("api.urls.courseOfferings")),
     path("plans/", include("api.urls.plans")),
+    path("user/", include("api.urls.users")),
     ]

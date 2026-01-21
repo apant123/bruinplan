@@ -9,8 +9,8 @@ class Plan(models.Model):
 
     start_year = models.IntegerField(null=True, blank=True)
 
-    created_at = models.DateTimeField()
-    updated_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
     class Meta:
