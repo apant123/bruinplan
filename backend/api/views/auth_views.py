@@ -7,15 +7,19 @@ from django.db import IntegrityError
 from supabase import create_client, Client, AuthApiError
 import jwt
 import os
+import pathlib
 
-load_dotenv()
+#loading in .env file
+ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]  # goes up to project root
+load_dotenv(ROOT_DIR / ".env")
+
 
 def verifyUser(request):
     '''
     the jwt verification function to be called in secure routes
     '''
 
-    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
+    JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
     auth_header = request.headers.get("Authorization")
 
     if not auth_header:
@@ -25,7 +29,7 @@ def verifyUser(request):
         jwt_val = auth_header.split(" ", 1)[1]
 
         #HS256 is what supabase supports as JWT algo
-        payload = jwt.decode(jwt_val, jwt_secret, algorithms=["HS256"], audience="authenticated")
+        payload = jwt.decode(jwt_val, JWT_SECRET, algorithms=["HS256"], audience="authenticated")
     except Exception:
         raise AuthenticationFailed("invalid authentication token or malformed format")
     
@@ -111,6 +115,46 @@ def getProfile(request):
         "updated_at": profile.updated_at
     }, status = 200)
 
+
+@api_view(["PATCH"])
+def updateProfile(request):
+
+    user_uuid = verifyUser(request)
+
+    try:
+        profile = UserProfile.objects.get(uuid=user_uuid)
+    except UserProfile.DoesNotExist:
+        return Response({"error": "no profile found"}, status = 404)
+    
+    UPDATEABLE_FIELDS = [
+        "major",
+        "minor",
+        "expected_grad",
+        "year",
+        "completed_lower_div_units",
+        "completed_upper_div_units",
+        "gpa",
+    ]
+
+    updated_fields = []
+
+    for field in UPDATEABLE_FIELDS:
+        if field in request.data:
+            setattr(profile, field, request.data.get(field) )
+            updated_fields.append(field)
+
+    if not updated_fields:
+        return Response({"error": "No valid updateable fields provided"}, status=400)
+    
+    profile.save()
+
+    return Response(
+        {
+            "message": "Profile updated successfully",
+            "updated_fields": updated_fields
+        },
+        status=200
+    )
 
 
 
