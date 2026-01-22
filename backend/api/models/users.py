@@ -18,7 +18,7 @@ class User(models.Model):
         managed = False         # Django won't create/migrate this table
 
 class UserProfile(models.Model):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     name = models.TextField(null=True)
     major = models.TextField(null=True)
@@ -32,10 +32,13 @@ class UserProfile(models.Model):
 
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True)
 
-    created_at = models.DateTimeField(null=True)
-    updated_at = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    classes_taken = models.JSONField(null=True)
+    classes_needed = models.JSONField(null=True)
 
     class Meta:
-        db_table = "user_profiles"   
+        db_table = "user_profiles"
         managed = False              
     

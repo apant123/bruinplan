@@ -32,24 +32,64 @@ function ProfileSetup() {
 
   const totalSteps = 5;
 
-  const handleNext = (data = {}) => {
-    setProfileData({ ...profileData, ...data });
+  const handleNext = async (data = {}) => {
+    // Merge new data into profileData state immediately
+    const updatedData = { ...profileData, ...data };
+    setProfileData(updatedData);
 
     // Check if we're on the last step
     if (currentStep === 5) {
-      const finalData = { ...profileData, ...data };
-      console.log('Profile setup completed!', finalData);
+      console.log('Profile setup finalizing...', updatedData);
 
-      // Create user account with the profile data
-      signup({
-        ...finalData,
-        darsConnected: finalData.darsOption === 'sync',
-        units: 0,
-        gpa: 0.0
-      });
+      // Prepare Payload
+      const formData = new FormData();
+      formData.append('firstName', updatedData.firstName);
+      formData.append('lastName', updatedData.lastName);
+      formData.append('email', updatedData.email);
+      formData.append('major', updatedData.major);
+      formData.append('minor', updatedData.minor);
+      formData.append('graduationYear', updatedData.graduationYear);
+      formData.append('graduationQuarter', updatedData.graduationQuarter);
 
-      // Navigate to profile page
-      navigate('/profile');
+      if (updatedData.uploadedFile) {
+        formData.append('file', updatedData.uploadedFile);
+      }
+
+      try {
+        const response = await fetch('http://localhost:8000/api/dars/upload/', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          console.error('Failed to create profile', response);
+        }
+
+        const responseData = await response.json();
+
+        // Create user account with remaining info
+        signup({
+          ...updatedData,
+          darsConnected: updatedData.darsOption === 'sync',
+          // Merge parsed data if available
+          userId: responseData.user_id,
+          classesTaken: responseData.taken_courses,
+          classesNeeded: responseData.requirements,
+          units: 0,
+          gpa: 0.0
+        });
+
+        // Navigate to profile page
+        navigate('/profile');
+
+      } catch (error) {
+        console.error('Error submitting profile:', error);
+        alert('Error creating profile. Treating as local fallback.');
+        // Fallback signup without backend ID?
+        signup({ ...updatedData, darsConnected: false });
+        navigate('/profile');
+      }
+
     } else {
       setCurrentStep(currentStep + 1);
     }
@@ -64,8 +104,13 @@ function ProfileSetup() {
   };
 
   const handleFileUpload = (file) => {
-    setProfileData({ ...profileData, uploadedFile: file });
-    console.log('DAR file uploaded!', { ...profileData, uploadedFile: file });
+    // Store file in state to be sent later
+    setProfileData({
+      ...profileData,
+      uploadedFile: file,
+      darsOption: 'sync'
+    });
+    console.log('DAR file staged for upload:', file.name);
     setShowUploadModal(false);
     // Move to Academic Program after upload
     setCurrentStep(4);
