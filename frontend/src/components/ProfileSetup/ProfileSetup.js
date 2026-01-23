@@ -32,24 +32,55 @@ function ProfileSetup() {
 
   const totalSteps = 5;
 
-  const handleNext = (data = {}) => {
-    setProfileData({ ...profileData, ...data });
+  const createUser = async (finalData) => {
+    //calling backend to create a user in the supabase auth and userprofile tables
+    try 
+    {
+      console.log("Attempting to create user:", {finalData});
 
+      const response = await fetch('http://127.0.0.1:8000/createUser/', {
+        method: "POST",
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+              email: finalData.email,
+              password: finalData.password
+          }),
+          credentials: "include"
+      });
+
+      const data = await response.json();
+      if (response.ok)
+      {
+        localStorage.setItem("token", data.accessToken); 
+        // Create user account with the profile data
+        signup({
+          ...finalData,
+          darsConnected: finalData.darsOption === 'sync',
+          units: 0,
+          gpa: 0.0
+        });
+        navigate("/profile");
+      }
+      else
+      {
+        console.error("user creation failed:", data.message || "Unknown error");
+      }
+    }
+    catch (error)
+    {
+      console.error("Error:", error)
+    }
+  }
+
+  const handleNext = async (data = {}) => {
+    setProfileData({ ...profileData, ...data });
     // Check if we're on the last step
     if (currentStep === 5) {
       const finalData = { ...profileData, ...data };
-      console.log('Profile setup completed!', finalData);
-
-      // Create user account with the profile data
-      signup({
-        ...finalData,
-        darsConnected: finalData.darsOption === 'sync',
-        units: 0,
-        gpa: 0.0
-      });
-
-      // Navigate to profile page
-      navigate('/profile');
+      await createUser(finalData)
+      
     } else {
       setCurrentStep(currentStep + 1);
     }
