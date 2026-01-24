@@ -18,7 +18,7 @@ class User(models.Model):
         managed = False         # Django won't create/migrate this table
 
 class UserProfile(models.Model):
-    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     name = models.TextField(null=True)
     major = models.TextField(null=True)

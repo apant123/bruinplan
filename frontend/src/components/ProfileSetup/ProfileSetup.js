@@ -21,6 +21,7 @@ function ProfileSetup() {
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
+    password: '',
     email: '',
     darsOption: '',
     uploadedFile: null,
@@ -37,22 +38,30 @@ function ProfileSetup() {
     try 
     {
       console.log("Attempting to create user:", {finalData});
+      const profile_name = finalData.firstName + " " + finalData.lastName;
+      const int_year = Number(finalData.graduationYear)
 
-      const response = await fetch('http://127.0.0.1:8000/createUser/', {
+      const response = await fetch('http://localhost:8000/api/auth/createUser/', {   //passwords passed via http endpoint which is not good, but django runs http so not sure how to work around this. For now testing with http 
         method: "POST",
           headers: {
               'Content-Type': 'application/json'
           },
           body: JSON.stringify({
               email: finalData.email,
-              password: finalData.password
+              password: finalData.password,
+              name: profile_name,
+              major: finalData.major,
+              minor: finalData.minor,
+              expected_grad: finalData.graduationQuarter,
+              year: int_year,
           }),
-          credentials: "include"
       });
 
       const data = await response.json();
       if (response.ok)
       {
+        //TEMP FOR TESTING
+        console.log(response);
         localStorage.setItem("token", data.accessToken); 
         // Create user account with the profile data
         signup({
@@ -65,7 +74,7 @@ function ProfileSetup() {
       }
       else
       {
-        console.error("user creation failed:", data.message || "Unknown error");
+        console.error("user creation failed:", data || "Unknown error");
       }
     }
     catch (error)
