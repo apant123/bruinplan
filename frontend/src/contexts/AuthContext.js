@@ -1,96 +1,65 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
-import { apiGetProfile } from "../api/auth";
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext();
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [session, setSession] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const isAuthenticated = !!session; // <- change this
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      setLoading(true);
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
-
-      const sess = data?.session ?? null;
-      setSession(sess);
-      setAccessToken(sess?.access_token ?? null);
-      setLoading(false);
-    };
-
-    init();
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      // auth state changed (OAuth callback lands here)
-      setLoading(true);
-
-      setSession(sess);
-      setAccessToken(sess?.access_token ?? null);
-      if (!sess) setProfile(null);
-
-      setLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe?.();
-    };
+    const storedUser = localStorage.getItem('bruinplan_user');
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      setIsAuthenticated(true);
+    }
   }, []);
 
-  useEffect(() => {
-    if (!accessToken) return;
+  const signup = (userData) => {
+    const userProfile = {
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      major: userData.major || '',
+      minor: userData.minor || '',
+      graduationYear: userData.graduationYear || '',
+      graduationQuarter: userData.graduationQuarter || '',
+      units: userData.units || 0,
+      gpa: userData.gpa || 0.0,
+      darsConnected: userData.darsConnected || false
+    };
 
-    (async () => {
-      try {
-        const p = await apiGetProfile(accessToken);
-        setProfile(p);
-      } catch (e) {
-        console.warn("Failed to load profile:", e.message);
-      }
-    })();
-  }, [accessToken]);
-
-  const signup = async ({ email, password }) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw new Error(error.message);
-    return data;
+    localStorage.setItem('bruinplan_user', JSON.stringify(userProfile));
+    setUser(userProfile);
+    setIsAuthenticated(true);
   };
 
-  const login = async ({ email, password }) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
-    return data;
+  const updateProfile = (updates) => {
+    const updatedUser = { ...user, ...updates };
+    localStorage.setItem('bruinplan_user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setProfile(null);
+  const logout = () => {
+    localStorage.removeItem('bruinplan_user');
+    setUser(null);
+    setIsAuthenticated(false);
   };
 
   const value = {
-    loading,
+    user,
     isAuthenticated,
-    accessToken,
-    session,
-    profile,
-    setProfile,
     signup,
-    login,
-    logout,
+    updateProfile,
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

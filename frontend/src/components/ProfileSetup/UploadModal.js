@@ -54,7 +54,6 @@ function UploadModal({ isOpen, onClose, onUpload }) {
           if (prev >= 100) {
             clearInterval(interval);
             setTimeout(() => {
-              // Pass the raw file back to parent; do NOT upload yet
               onUpload(selectedFile);
               setIsUploading(false);
               setUploadProgress(0);
@@ -64,7 +63,7 @@ function UploadModal({ isOpen, onClose, onUpload }) {
           }
           return prev + 10;
         });
-      }, 50);
+      }, 100);
     }
   };
 
@@ -80,8 +79,8 @@ function UploadModal({ isOpen, onClose, onUpload }) {
         <div className="modal-header">
           <div className="modal-title-row">
             <svg className="upload-icon-header" width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M7 16C7 16 7 17 8 17H16C17 17 17 16 17 16M12 7V14M12 7L9 10M12 7L15 10" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" stroke="#666" strokeWidth="2" />
+              <path d="M7 16C7 16 7 17 8 17H16C17 17 17 16 17 16M12 7V14M12 7L9 10M12 7L15 10" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" stroke="#666" strokeWidth="2"/>
             </svg>
             <div>
               <h2 className="modal-title">Upload files</h2>
@@ -90,7 +89,7 @@ function UploadModal({ isOpen, onClose, onUpload }) {
           </div>
           <button className="close-button" onClick={onClose}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6L18 18" stroke="#666" strokeWidth="2" strokeLinecap="round" />
+              <path d="M18 6L6 18M6 6L18 18" stroke="#666" strokeWidth="2" strokeLinecap="round"/>
             </svg>
           </button>
         </div>
@@ -102,8 +101,8 @@ function UploadModal({ isOpen, onClose, onUpload }) {
           onDrop={handleDrop}
         >
           <svg className="cloud-icon" width="60" height="60" viewBox="0 0 60 60" fill="none">
-            <path d="M20 40C20 40 20 42.5 22.5 42.5H37.5C40 42.5 40 40 40 40M30 17.5V35M30 17.5L22.5 25M30 17.5L37.5 25" stroke="#666" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M30 7.5C18.9543 7.5 10 16.4543 10 27.5C10 38.5457 18.9543 47.5 30 47.5C41.0457 47.5 50 38.5457 50 27.5C50 16.4543 41.0457 7.5 30 7.5Z" stroke="#666" strokeWidth="3" />
+            <path d="M20 40C20 40 20 42.5 22.5 42.5H37.5C40 42.5 40 40 40 40M30 17.5V35M30 17.5L22.5 25M30 17.5L37.5 25" stroke="#666" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M30 7.5C18.9543 7.5 10 16.4543 10 27.5C10 38.5457 18.9543 47.5 30 47.5C41.0457 47.5 50 38.5457 50 27.5C50 16.4543 41.0457 7.5 30 7.5Z" stroke="#666" strokeWidth="3"/>
           </svg>
 
           <p className="upload-text">
@@ -160,8 +159,8 @@ function UploadModal({ isOpen, onClose, onUpload }) {
             {!isUploading && (
               <button className="remove-file-button" onClick={handleRemoveFile}>
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="9" stroke="#666" strokeWidth="1.5" />
-                  <path d="M13 7L7 13M7 7L13 13" stroke="#666" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="10" cy="10" r="9" stroke="#666" strokeWidth="1.5"/>
+                  <path d="M13 7L7 13M7 7L13 13" stroke="#666" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </button>
             )}

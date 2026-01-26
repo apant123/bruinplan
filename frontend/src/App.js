@@ -1,22 +1,17 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-
-import SignUp from "./pages/SignUp";
-import Login from "./pages/Login";
-import Profile from "./pages/Profile";
-import ExploreCourses from "./pages/ExploreCourses";
-import Plan from "./pages/Plan";
-import DegreeProgress from "./pages/DegreeProgress";
-import OnboardingWizard from "./pages/OnboardingWizard";
-import AuthCallback from "./pages/AuthCallback";
-
-import "./App.css";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import SignUp from './pages/SignUp';
+import Login from './pages/Login';
+import Profile from './pages/Profile';
+import ExploreCourses from './pages/ExploreCourses';
+import Plan from './pages/Plan';
+import DegreeProgress from './pages/DegreeProgress';
+import './App.css';
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return null; 
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/signup" />;
 }
 
 function AppRoutes() {
@@ -24,25 +19,8 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<SignUp />} />
-      {/* OAuth callback must be public */}
-      <Route path="/auth/callback" element={<AuthCallback />} />
-
-      {/* Auth pages */}
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/onboarding" replace /> : <Login />} />
-      <Route path="/signup" element={isAuthenticated ? <Navigate to="/onboarding" replace /> : <SignUp />} />
-
-      {/* Onboarding */}
-      <Route
-        path="/onboarding"
-        element={
-          <ProtectedRoute>
-            <OnboardingWizard />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Main app */}
+      <Route path="/signup" element={isAuthenticated ? <Navigate to="/profile" /> : <SignUp />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/profile" /> : <Login />} />
       <Route
         path="/profile"
         element={
@@ -75,12 +53,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
-      {/* Default */}
-      <Route path="/" element={<Navigate to={isAuthenticated ? "/onboarding" : "/login"} replace />} />
-
-      {/* Catch-all (optional but recommended) */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<Navigate to={isAuthenticated ? "/profile" : "/signup"} />} />
     </Routes>
   );
 }

@@ -81,7 +81,11 @@ import os
 import dj_database_url
 from dotenv import load_dotenv
 
-load_dotenv()  # make sure .env is loaded
+ENV_PATH = BASE_DIR / ".env"   # BASE_DIR is backend/
+load_dotenv(dotenv_path=ENV_PATH)
+
+# optional but extremely useful once:
+print("Loaded .env from:", ENV_PATH, "exists?", ENV_PATH.exists())
 
 DATABASES = {
     "default": dj_database_url.parse(

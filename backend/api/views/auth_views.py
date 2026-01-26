@@ -8,11 +8,12 @@ from supabase import create_client, Client, AuthApiError
 import jwt
 import os
 import pathlib
+import traceback
+
 
 #loading in .env file
 #NOTE: this stuff + declaring constants from .env could go in settings and you wouldn't need to do this in every view that needs these, but for now it is here because no other views seem to need these details yet so maybe good to reduce scope with which they are present
-ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]  # goes up to project root
-load_dotenv(ROOT_DIR / ".env")
+
 
 def verifyUser(request):
     '''
@@ -73,88 +74,105 @@ def apply_profile_updates(user_profile, data):
 
 
 
-
 @api_view(["POST"])
 def createUser(request):
-    #create user in supabase auth users table, then create corrosponding user in userprofile table with matching uid and created_at field
-    
-    print("CREATE USER REQUEST DATA:", request.data)
-
-    SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-
-    email = request.data.get("email")
-    password = request.data.get("password")
-
-    
-    if email is None or password is None:
-        return Response({"Need email and password to sign up"}, status = 400)
-    
-    #remove accidental trailing or leading whitespace for entries; just good hygeine
-    email, password = email.strip(), password.strip()
-
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    
     try:
-        response = supabase.auth.admin.create_user(
-            {
-                "email": email,
-                "password": password,
-                "email_confirm": True 
-             
-            }
-        )
+        print("CREATE USER REQUEST DATA:", request.data)
+
+        # --- Env vars ---
+        supabase_url = os.getenv("SUPABASE_URL")
+
+        # Prefer official Supabase name; fall back to your legacy name
+        service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY")
+        anon_key = os.getenv("SUPABASE_ANON_KEY")
+
+        if not supabase_url or not service_role_key:
+            return Response(
+                {"error": "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY)"},
+                status=500,
+            )
+
+        # --- Required fields ---
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if not email or not password:
+            return Response({"error": "Need email and password to sign up"}, status=400)
+
+        email, password = email.strip(), password.strip()
+
+        # --- Admin client for creating users ---
+        admin: Client = create_client(supabase_url, service_role_key)
+
+        try:
+            res = admin.auth.admin.create_user(
+                {
+                    "email": email,
+                    "password": password,
+                    "email_confirm": True,
+                }
+            )
+        except Exception as e:
+            print("Supabase create_user failed:", repr(e))
+            return Response({"error": str(e)}, status=400)
+
+        if not res or not getattr(res, "user", None):
+            return Response({"error": "Unexpected/no response from Supabase"}, status=400)
+
+        user_id = res.user.id
+
+        # --- Create local profile row (let DB default created_at handle it) ---
+        new_user = UserProfile(id=user_id)
+
+        try:
+            new_user.save()
+        except IntegrityError:
+            return Response(
+                {"id": user_id, "message": "UserProfile with this id already exists"},
+                status=400,
+            )
+
+        # --- Optional profile fields (sanitize "None"/"" first) ---
+        cleaned = dict(request.data)
+        for k, v in list(cleaned.items()):
+            if isinstance(v, str) and v.strip().lower() in ("none", "null", ""):
+                cleaned[k] = None
+
+        try:
+            apply_profile_updates(new_user, cleaned)
+            new_user.save()
+        except Exception as e:
+            print(f"Warning: optional profile details not fully applied: {e}")
+
+        # --- Login (use anon key; service role key is not meant for normal sign-in) ---
+        access_token = None
+        if anon_key:
+            user_client: Client = create_client(supabase_url, anon_key)
+            try:
+                login_res = user_client.auth.sign_in_with_password({"email": email, "password": password})
+                if login_res and getattr(login_res, "session", None):
+                    access_token = login_res.session.access_token
+            except Exception as e:
+                print(f"Warning: login failed after signup: {e}")
+        else:
+            print("Warning: SUPABASE_ANON_KEY missing; skipping auto-login")
+
+        payload = {
+            "id": new_user.id,
+            "created_at": new_user.created_at,
+            "message": "User successfully created",
+        }
+        if access_token:
+            payload["accessToken"] = access_token
+            payload["message"] = "User successfully created and logged in"
+        else:
+            payload["message"] = "User created but login failed (or anon key missing)"
+
+        return Response(payload, status=201)
+
     except Exception as e:
-        return Response({"error": f"{e}"}, status = 400)
-
-    if response is None or response.user is None:
-        return Response({"error": "unexpected or no response from Supabase"}, status = 400)
-
-    uuid = response.user.id
-    creation_date = response.user.created_at
-    newUser = UserProfile(
-        id = uuid,
-        created_at = creation_date
-    )
-
-    try:
-        newUser.save()
-    except IntegrityError:
-        return Response({
-            "id": newUser.id,
-            "message": "User with id already exists"
-        }, status = 400)
-    
-    #now we try to save the other optional details. This is in seperate try block because don't want malformed optional details to result in a corrosponding userProfile not being created for each supabase auth entry.
-    #if this step fails it's okay, we can just leave these fields blank for now and let them be updated later
-    try:
-
-        apply_profile_updates(newUser, request.data)
-        newUser.save()
-    except Exception as e:
-        print(f"Warning:  additional profile details could not be fully assigned: {e}")  
-
-    #after signing up user immediately log them in
-
-    login_res = supabase.auth.sign_in_with_password({
-        "email": email,
-        "password": password
-    })
-
-    if login_res.session is None:
-        return Response({
-            "id": newUser.id,
-            "message": "User created but login failed"
-        }, status=201)
-    
-    jwt_token = login_res.session.access_token
-
-    return Response({
-        "id": newUser.id,
-        "created_at": newUser.created_at,
-        "accessToken": jwt_token,
-        "message": "User successfully created and logged in"
-    }, status = 201)
+        traceback.print_exc()
+        return Response({"error": str(e)}, status=500)
 
 
 
