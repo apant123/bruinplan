@@ -104,13 +104,8 @@ function ProfileSetup() {
   };
 
   const handleFileUpload = (file) => {
-    // Store file in state to be sent later
-    setProfileData({
-      ...profileData,
-      uploadedFile: file,
-      darsOption: 'sync'
-    });
-    console.log('DAR file staged for upload:', file.name);
+    setProfileData({ ...profileData, uploadedFile: file });
+    console.log('DAR file uploaded!', { ...profileData, uploadedFile: file });
     setShowUploadModal(false);
     // Move to Academic Program after upload
     setCurrentStep(4);

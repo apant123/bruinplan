@@ -28,10 +28,6 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 CORS_ALLOW_ALL_ORIGINS = True
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/Brio_api_login
 
 # Application definition
 
