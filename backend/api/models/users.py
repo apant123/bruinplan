@@ -32,10 +32,13 @@ class UserProfile(models.Model):
 
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True)
 
-    created_at = models.DateTimeField(null=True)
-    updated_at = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    classes_taken = models.JSONField(null=True)
+    classes_needed = models.JSONField(null=True)
 
     class Meta:
-        db_table = "user_profiles"   
+        db_table = "user_profiles"
         managed = False              
     
