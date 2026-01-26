@@ -10,13 +10,13 @@ import Plan from "./pages/Plan";
 import DegreeProgress from "./pages/DegreeProgress";
 import OnboardingWizard from "./pages/OnboardingWizard";
 import AuthCallback from "./pages/AuthCallback";
-import WelcomePage from "./components/ProfileSetup/WelcomePage";
 
 import "./App.css";
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/Signup" replace />;
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null; 
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
 function AppRoutes() {

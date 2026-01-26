@@ -1,7 +1,31 @@
-import React from 'react';
+import React, { useState } from "react";
 import './WelcomePage.css';
+import { supabase } from "../../supabaseClient"; // note: two levels up
+
 
 function WelcomePage({ onNext }) {
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const signInWithGoogle = async () => {
+    setError("");
+    setLoading(true);
+
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (oauthError) {
+      setError(oauthError.message);
+      setLoading(false);
+    }
+  };
+
+
   return (
     <div className="welcome-card">
       <h1 className="welcome-title">Welcome to Bruin Plan! 🎓</h1>
@@ -19,9 +43,15 @@ function WelcomePage({ onNext }) {
         </ul>
       </div>
 
-      <button className="primary-button" onClick={onNext}>
-        Get Started
+      <button className="primary-button" onClick={signInWithGoogle} disabled={loading}>
+        {loading ? "Redirecting..." : "Get Started with Google"}
       </button>
+
+      <button className="secondary-button" onClick={onNext} disabled={loading}>
+        Continue without Google
+      </button>
+
+      {error && <div className="login-error">{error}</div>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
-import { apiGetProfile } from "../api/auth"; // GET /api/user/ with Bearer token
+import { apiGetProfile } from "../api/auth";
 
 const AuthContext = createContext(null);
 
@@ -11,18 +11,18 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [session, setSession] = useState(null);          // supabase session
-  const [accessToken, setAccessToken] = useState(null);  // JWT
-  const [profile, setProfile] = useState(null);          // from your Django UserProfile
+  const [session, setSession] = useState(null);
+  const [accessToken, setAccessToken] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = !!accessToken;
+  const isAuthenticated = !!session; // <- change this
 
-  // Keep session in sync with Supabase
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
+    const init = async () => {
+      setLoading(true);
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
 
@@ -30,12 +30,19 @@ export const AuthProvider = ({ children }) => {
       setSession(sess);
       setAccessToken(sess?.access_token ?? null);
       setLoading(false);
-    })();
+    };
+
+    init();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      // auth state changed (OAuth callback lands here)
+      setLoading(true);
+
       setSession(sess);
       setAccessToken(sess?.access_token ?? null);
       if (!sess) setProfile(null);
+
+      setLoading(false);
     });
 
     return () => {
@@ -44,7 +51,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // When token exists, fetch backend profile
   useEffect(() => {
     if (!accessToken) return;
 
@@ -53,19 +59,14 @@ export const AuthProvider = ({ children }) => {
         const p = await apiGetProfile(accessToken);
         setProfile(p);
       } catch (e) {
-        // If profile doesn't exist yet, that’s fine during onboarding
-        // Just keep profile null and let wizard create/update it.
         console.warn("Failed to load profile:", e.message);
       }
     })();
   }, [accessToken]);
 
-  // Use Supabase for signup/login (real auth)
   const signup = async ({ email, password }) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw new Error(error.message);
-
-    // Depending on Supabase settings, session may be null until email confirm
     return data;
   };
 
@@ -86,7 +87,7 @@ export const AuthProvider = ({ children }) => {
     accessToken,
     session,
     profile,
-    setProfile, // wizard will call this after updating backend
+    setProfile,
     signup,
     login,
     logout,
