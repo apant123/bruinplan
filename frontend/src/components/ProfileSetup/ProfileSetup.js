@@ -21,6 +21,7 @@ function ProfileSetup() {
   const [profileData, setProfileData] = useState({
     firstName: '',
     lastName: '',
+    password: '',
     email: '',
     darsOption: '',
     uploadedFile: null,
@@ -32,64 +33,63 @@ function ProfileSetup() {
 
   const totalSteps = 5;
 
-  const handleNext = async (data = {}) => {
-    // Merge new data into profileData state immediately
-    const updatedData = { ...profileData, ...data };
-    setProfileData(updatedData);
+  const createUser = async (finalData) => {
+    //calling backend to create a user in the supabase auth and userprofile tables
+    try 
+    {
+      console.log("Attempting to create user:", {finalData});
+      const profile_name = finalData.firstName + " " + finalData.lastName;
+      const int_year = Number(finalData.graduationYear)
 
-    // Check if we're on the last step
-    if (currentStep === 5) {
-      console.log('Profile setup finalizing...', updatedData);
+      const response = await fetch('http://localhost:8000/api/auth/createUser/', {   //passwords passed via http endpoint which is not good, but django runs http so not sure how to work around this. For now testing with http 
+        method: "POST",
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+              email: finalData.email,
+              password: finalData.password,
+              name: profile_name,
+              major: finalData.major,
+              minor: finalData.minor,
+              expected_grad: finalData.graduationQuarter,
+              year: int_year,
+          }),
+      });
 
-      // Prepare Payload
-      const formData = new FormData();
-      formData.append('firstName', updatedData.firstName);
-      formData.append('lastName', updatedData.lastName);
-      formData.append('email', updatedData.email);
-      formData.append('major', updatedData.major);
-      formData.append('minor', updatedData.minor);
-      formData.append('graduationYear', updatedData.graduationYear);
-      formData.append('graduationQuarter', updatedData.graduationQuarter);
-
-      if (updatedData.uploadedFile) {
-        formData.append('file', updatedData.uploadedFile);
-      }
-
-      try {
-        const response = await fetch('http://localhost:8000/api/dars/upload/', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          console.error('Failed to create profile', response);
-        }
-
-        const responseData = await response.json();
-
-        // Create user account with remaining info
+      const data = await response.json();
+      if (response.ok)
+      {
+        //TEMP FOR TESTING
+        console.log(response);
+        localStorage.setItem("token", data.accessToken); 
+        // Create user account with the profile data
         signup({
-          ...updatedData,
-          darsConnected: updatedData.darsOption === 'sync',
-          // Merge parsed data if available
-          userId: responseData.user_id,
-          classesTaken: responseData.taken_courses,
-          classesNeeded: responseData.requirements,
+          ...finalData,
+          darsConnected: finalData.darsOption === 'sync',
           units: 0,
           gpa: 0.0
         });
-
-        // Navigate to profile page
-        navigate('/profile');
-
-      } catch (error) {
-        console.error('Error submitting profile:', error);
-        alert('Error creating profile. Treating as local fallback.');
-        // Fallback signup without backend ID?
-        signup({ ...updatedData, darsConnected: false });
-        navigate('/profile');
+        navigate("/profile");
       }
+      else
+      {
+        console.error("user creation failed:", data || "Unknown error");
+      }
+    }
+    catch (error)
+    {
+      console.error("Error:", error)
+    }
+  }
 
+  const handleNext = async (data = {}) => {
+    setProfileData({ ...profileData, ...data });
+    // Check if we're on the last step
+    if (currentStep === 5) {
+      const finalData = { ...profileData, ...data };
+      await createUser(finalData)
+      
     } else {
       setCurrentStep(currentStep + 1);
     }

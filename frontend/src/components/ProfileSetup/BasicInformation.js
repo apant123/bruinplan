@@ -5,8 +5,10 @@ function BasicInformation({ onNext, onBack }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: ''
+    email: '',
+    password: ''
   });
+
   const [emailError, setEmailError] = useState('');
 
   const handleChange = (e) => {
@@ -45,7 +47,7 @@ function BasicInformation({ onNext, onBack }) {
     }
   };
 
-  const isFormValid = formData.firstName && formData.lastName && formData.email;
+  const isFormValid = formData.firstName && formData.lastName && formData.email && formData.password;
 
   return (
     <div className="basic-info-card">
@@ -88,6 +90,20 @@ function BasicInformation({ onNext, onBack }) {
             placeholder="youremail@g.ucla.edu"
             value={formData.email}
             onChange={handleEmailChange}
+            required
+          />
+          {emailError && <span className="error-message">{emailError}</span>}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label"> Password (Min. 8 characters, 1 uppercase, 1 number)*</label>
+          <input
+            type="text"
+            name="password"
+            className={`form-input`}
+            placeholder="passwoed"
+            value={formData.password}
+            onChange={handleChange}
             required
           />
           {emailError && <span className="error-message">{emailError}</span>}
