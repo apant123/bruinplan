@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import uuid
 
-from api.models import Plan, User  # <-- add User
+from api.models import Plan, UserProfile  # <-- add User
 
 def _debug_auth(request):
     print("=== AUTH DEBUG ===")
@@ -30,23 +30,15 @@ def _get_user_uuid(request):
 def _resolve_plan_user_id(request):
     user_uuid = _get_user_uuid(request)
     if user_uuid is None:
-        return None, Response(
-            {"error": "unauthenticated: no request.user.id and no X-User-Id header"},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
+        return None, Response({"error": "unauthenticated: ..."}, status=401)
     if user_uuid == "invalid":
-        return None, Response(
-            {"error": "X-User-Id must be a UUID"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return None, Response({"error": "X-User-Id must be a UUID"}, status=400)
 
-    u = User.objects.filter(id=user_uuid).only("id").first()
-    if not u:
-        return None, Response(
-            {"error": f"unknown user uuid {user_uuid}"},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-    return u.id, None
+    # optional validation
+    if not UserProfile.objects.filter(id=user_uuid).exists():
+        return None, Response({"error": f"unknown user_profile id {user_uuid}"}, status=401)
+
+    return user_uuid, None
 
 @api_view(["GET", "POST"])
 def plans_view(request):
