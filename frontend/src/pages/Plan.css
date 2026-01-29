@@ -1,3 +1,60 @@
+.subject-search {
+  position: relative;
+}
+
+.subject-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  z-index: 50;
+}
+
+.subject-option {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.subject-option:hover {
+  background: #f6f8fb;
+}
+
+.subject-code {
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.subject-name {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.subject-empty {
+  padding: 10px 12px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.subject-error {
+  margin-top: 8px;
+  color: #b42318;
+  font-size: 12px;
+}
+
+
 .plan-page {
   min-height: 100vh;
   background: #f8f8f8;

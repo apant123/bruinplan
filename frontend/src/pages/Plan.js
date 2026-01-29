@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import NavBar from '../components/NavBar';
 import './Plan.css';
 
@@ -8,6 +8,140 @@ function Plan() {
   const [searchQuery, setSearchQuery] = useState('');
   const [majorFilter, setMajorFilter] = useState('Computer Science (COM SCI)');
   const [expandedYears, setExpandedYears] = useState({ year1: true, year2: true });
+  const [subjects, setSubjects] = useState([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [subjectsError, setSubjectsError] = useState('');
+  const [subjectQuery, setSubjectQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState({
+    id: 230,
+    code: 'COM SCI',
+    name: 'Computer Science',
+  });
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState('');
+
+
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const subjectBoxRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSubjects() {
+      setSubjectsLoading(true);
+      setSubjectsError('');
+
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/subjects', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const list = Array.isArray(data?.subjects) ? data.subjects : [];
+        // Optional: sort by code then name for nicer UX
+        list.sort((a, b) => {
+          const c = (a.code || '').localeCompare(b.code || '');
+          return c !== 0 ? c : (a.name || '').localeCompare(b.name || '');
+        });
+
+        if (!cancelled) setSubjects(list);
+      } catch (e) {
+        if (!cancelled) setSubjectsError('Failed to load subjects.');
+      } finally {
+        if (!cancelled) setSubjectsLoading(false);
+      }
+    }
+
+    loadSubjects();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+
+  useEffect(() => {
+    if (!selectedSubject?.id) {
+      setCourses([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadCourses() {
+      setCoursesLoading(true);
+      setCoursesError('');
+
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/api/courses/${selectedSubject.id}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        const list = Array.isArray(data?.courses) ? data.courses : [];
+        if (!cancelled) setCourses(list);
+      } catch (e) {
+        if (!cancelled) setCoursesError('Failed to load courses.');
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    }
+
+    loadCourses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSubject?.id]);
+
+
+  useEffect(() => {
+    function onDocMouseDown(e) {
+      if (!subjectBoxRef.current) return;
+      if (!subjectBoxRef.current.contains(e.target)) {
+        setSubjectDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  const filteredSubjects = useMemo(() => {
+    const q = subjectQuery.trim().toLowerCase();
+    if (!q) return subjects.slice(0, 50); // don’t dump 200+ items by default
+
+    return subjects
+      .filter((s) => {
+        const code = (s.code || '').toLowerCase();
+        const name = (s.name || '').toLowerCase();
+        return code.includes(q) || name.includes(q);
+      })
+      .slice(0, 50);
+  }, [subjects, subjectQuery]);
+
+  const courseLabel = (c) => `${selectedSubject?.code ?? ''} ${c?.number ?? ''}`.trim();
+    const filteredCourses = useMemo(() => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return courses.slice(0, 60);
+
+      return courses
+        .filter((c) => {
+          const label = courseLabel(c).toLowerCase();
+          const title = (c.title || '').toLowerCase();
+          const desc = (c.description || '').toLowerCase();
+          return label.includes(q) || title.includes(q) || desc.includes(q);
+        })
+        .slice(0, 60);
+    }, [courses, searchQuery, selectedSubject?.code]);
+
+
 
   const samplePlans = [
     {
@@ -184,19 +318,73 @@ function Plan() {
             </div>
           </div>
 
-          <div className="sidebar-section">
-            <h3>Major/Minor</h3>
-            <div className="major-tag">
-              <span>Computer Science (COM SCI)</span>
-              <button className="remove-tag">×</button>
+          <div className="sidebar-section" ref={subjectBoxRef}>
+            <h3>Subject</h3>
+
+            {selectedSubject && (
+              <div className="major-tag">
+                <span>
+                  {selectedSubject.name} ({selectedSubject.code})
+                </span>
+                <button
+                  className="remove-tag"
+                  type="button"
+                  onClick={() => {
+                    setSelectedSubject(null);
+                    setSubjectQuery('');
+                  }}
+                  aria-label="Clear subject"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
+            <div className="subject-search">
+              <input
+                type="text"
+                className="major-select" // reuse your existing styling if you want
+                placeholder={subjectsLoading ? 'Loading subjects…' : 'Search subject (code or name)'}
+                value={subjectQuery}
+                onChange={(e) => {
+                  setSubjectQuery(e.target.value);
+                  setSubjectDropdownOpen(true);
+                }}
+                onFocus={() => setSubjectDropdownOpen(true)}
+                disabled={subjectsLoading}
+              />
+
+              {subjectsError && <div className="subject-error">{subjectsError}</div>}
+
+              {subjectDropdownOpen && !subjectsLoading && (
+                <div className="subject-dropdown">
+                  {filteredSubjects.length === 0 ? (
+                    <div className="subject-empty">No matches</div>
+                  ) : (
+                    filteredSubjects.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className="subject-option"
+                        onClick={() => {
+                          setSelectedSubject({ id: s.id, code: s.code, name: s.name });
+                          setSubjectQuery(`${s.code}`); // or '' if you want it to clear after select
+                          setSubjectDropdownOpen(false);
+                        }}
+                      >
+                        <div className="subject-code">{s.code}</div>
+                        <div className="subject-name">{s.name}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-            <select className="major-select">
-              <option>Select Major or Minor</option>
-            </select>
           </div>
 
+
           <div className="sidebar-section">
-            <h3>Major/Minor</h3>
+            <h3>Subject</h3>
             <label className="radio-label">
               <input type="radio" name="course-filter" />
               <span>Bookmarked Courses</span>
@@ -215,22 +403,28 @@ function Plan() {
           </button>
 
           <div className="courses-list-sidebar">
-            {availableCourses.map((course, idx) => (
-              <div key={idx} className={`course-card-sidebar color-${course.color}`} draggable="true">
+            {coursesLoading && <div className="sidebar-hint">Loading courses…</div>}
+            {coursesError && <div className="sidebar-hint error">{coursesError}</div>}
+
+            {!coursesLoading && !coursesError && filteredCourses.map((c) => (
+              <div
+                key={c.id}
+                className="course-card-sidebar"
+                draggable="true"
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/json', JSON.stringify(c));
+                  e.dataTransfer.setData('text/plain', courseLabel(c));
+                }}
+              >
                 <div className="course-header">
-                  <span className="course-code">{course.code}</span>
-                  {course.warning && (
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 1l7 14H1L8 1z" fill="#ff9800"/>
-                      <path d="M8 6v4M8 11v1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  )}
+                  <span className="course-code">{courseLabel(c)}</span>
                 </div>
-                <div className="course-title">{course.title}</div>
-                <div className="course-units">{course.units} units</div>
+                <div className="course-title">{c.title}</div>
+                <div className="course-units">{c.units} units</div>
               </div>
             ))}
           </div>
+
         </aside>
 
         <main className="plan-main">
