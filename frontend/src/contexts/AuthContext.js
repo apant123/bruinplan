@@ -23,21 +23,22 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const signup = (userData) => {
+  const signup = (apiUser) => {
     const userProfile = {
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      email: userData.email,
-      major: userData.major || '',
-      minor: userData.minor || '',
-      graduationYear: userData.graduationYear || '',
-      graduationQuarter: userData.graduationQuarter || '',
-      units: userData.units || 0,
-      gpa: userData.gpa || 0.0,
-      darsConnected: userData.darsConnected || false
+      id: apiUser.id,             
+      firstName: apiUser.first_name,
+      lastName: apiUser.last_name,
+      email: apiUser.email,
+      major: apiUser.major || "",
+      minor: apiUser.minor || "",
+      graduationYear: apiUser.graduation_year || "",
+      graduationQuarter: apiUser.graduation_quarter || "",
+      units: apiUser.units || 0,
+      gpa: apiUser.gpa || 0.0,
+      darsConnected: apiUser.dars_connected || false,
     };
 
-    localStorage.setItem('bruinplan_user', JSON.stringify(userProfile));
+    localStorage.setItem("bruinplan_user", JSON.stringify(userProfile));
     setUser(userProfile);
     setIsAuthenticated(true);
   };

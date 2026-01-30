@@ -6,7 +6,8 @@ import './Profile.css';
 
 function Profile() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  
 
   const getInitials = () => {
     if (!user) return '';

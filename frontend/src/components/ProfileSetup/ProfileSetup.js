@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import NavBar from '../NavBar';
@@ -61,15 +61,34 @@ function ProfileSetup() {
       if (response.ok)
       {
         //TEMP FOR TESTING
-        console.log(response);
+        console.log("createUser response JSON:", data);
         localStorage.setItem("token", data.accessToken); 
+
+        const backendUserId =
+          data.user?.id ?? data.id ?? data.user_id ?? data.profile?.id ?? null;
+
+        if (!backendUserId) {
+          console.error("No user id returned from backend. Response:", data);
+          return;
+        }
         // Create user account with the profile data
         signup({
-          ...finalData,
-          darsConnected: finalData.darsOption === 'sync',
+          id: backendUserId,
+          // IMPORTANT: map snake_case if your signup() expects it,
+          // OR update signup() to accept camelCase.
+          first_name: finalData.firstName,
+          last_name: finalData.lastName,
+          email: finalData.email,
+          major: finalData.major,
+          minor: finalData.minor,
+          graduation_year: finalData.graduationYear,
+          graduation_quarter: finalData.graduationQuarter,
+          dars_connected: finalData.darsOption === "sync",
           units: 0,
-          gpa: 0.0
+          gpa: 0.0,
         });
+        
+        console.log("stored bruinplan_user:", localStorage.getItem("bruinplan_user"));
         navigate("/profile");
       }
       else

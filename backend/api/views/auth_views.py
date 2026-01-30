@@ -158,8 +158,20 @@ def createUser(request):
             print("Warning: SUPABASE_ANON_KEY missing; skipping auto-login")
 
         payload = {
-            "id": new_user.id,
-            "created_at": new_user.created_at,
+            "user": {
+                "id": str(new_user.id),
+                "email": new_user.email if hasattr(new_user, "email") else email,
+                "first_name": getattr(new_user, "first_name", None),
+                "last_name": getattr(new_user, "last_name", None),
+                "major": getattr(new_user, "major", None),
+                "minor": getattr(new_user, "minor", None),
+                "graduation_year": getattr(new_user, "graduation_year", None),
+                "graduation_quarter": getattr(new_user, "graduation_quarter", None),
+                "units": getattr(new_user, "units", None),
+                "gpa": getattr(new_user, "gpa", None),
+                "dars_connected": getattr(new_user, "dars_connected", None),
+                "created_at": new_user.created_at,
+            },
             "message": "User successfully created",
         }
         if access_token:

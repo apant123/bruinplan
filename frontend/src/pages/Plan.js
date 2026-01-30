@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import NavBar from '../components/NavBar';
 import './Plan.css';
+import { useAuth } from '../contexts/AuthContext';
+
 
 function Plan() {
   const [view, setView] = useState('all-plans'); // 'all-plans' or 'editor'
@@ -24,6 +26,11 @@ function Plan() {
 
   const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const subjectBoxRef = useRef(null);
+  const { user, isAuthenticated } = useAuth();
+  console.log("PLAN AUTH:", { isAuthenticated, user });
+
+  const [createPlanLoading, setCreatePlanLoading] = useState(false);
+  const [createPlanError, setCreatePlanError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -231,10 +238,51 @@ function Plan() {
     { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'green', warning: false }
   ];
 
-  const handleCreateNew = () => {
-    setSelectedPlan({ id: 'new', title: 'Schedule 1' });
-    setView('editor');
+  const handleCreateNew = async () => {
+    if (createPlanLoading) return;
+
+    const userId = user?.id;
+    if (!userId) {
+      setCreatePlanError('Missing user id. Please log in again.');
+      return;
+    }
+
+    setCreatePlanLoading(true);
+    setCreatePlanError('');
+
+    try {
+      const payload = {
+        name: 'Schedule 1',
+        start_year: new Date().getFullYear(), // or 2026 if you want fixed
+      };
+
+      const res = await fetch('http://localhost:8000/api/plans/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': userId,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${text}`);
+      }
+
+      const data = await res.json();
+      const createdPlan = data?.plan ?? data; // depends on your API
+
+      setSelectedPlan(createdPlan);
+      setView('editor');
+    } catch (err) {
+      console.error(err);
+      setCreatePlanError('Failed to create plan.');
+    } finally {
+      setCreatePlanLoading(false);
+    }
   };
+
 
   const handleOpenPlan = (plan) => {
     setSelectedPlan(plan);
@@ -263,9 +311,10 @@ function Plan() {
       <div className="plan-page">
         <NavBar />
         <div className="plan-container">
-          <button className="create-new-btn" onClick={handleCreateNew}>
-            + Create New Plan
+          <button className="create-new-btn" onClick={handleCreateNew} disabled={createPlanLoading}>
+            {createPlanLoading ? 'Creating…' : '+ Create New Plan'}
           </button>
+          {createPlanError && <div className="sidebar-hint error">{createPlanError}</div>}
 
           <div className="plans-grid">
             {samplePlans.map(plan => (
