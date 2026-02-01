@@ -3,13 +3,23 @@ import NavBar from '../components/NavBar';
 import './Plan.css';
 import { useAuth } from '../contexts/AuthContext';
 
+const TERMS = ['FALL', 'WINTER', 'SPRING', 'SUMMER_A', 'SUMMER_C'];
+const TERM_LABELS = { FALL: 'Fall', WINTER: 'Winter', SPRING: 'Spring', SUMMER_A: 'Summer A', SUMMER_C: 'Summer C' };
+const YEAR_COUNT = 4;
 
 function Plan() {
   const [view, setView] = useState('all-plans'); // 'all-plans' or 'editor'
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [majorFilter, setMajorFilter] = useState('Computer Science (COM SCI)');
-  const [expandedYears, setExpandedYears] = useState({ year1: true, year2: true });
+  const [expandedYears, setExpandedYears] = useState(
+    Object.fromEntries(Array.from({ length: YEAR_COUNT }, (_, i) => [`year${i + 1}`, true]))
+  );
+  const [planItems, setPlanItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemsError, setItemsError] = useState('');
+  const [courseCache, setCourseCache] = useState({});
+  const [dragOverTarget, setDragOverTarget] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [subjectsError, setSubjectsError] = useState('');
@@ -28,6 +38,10 @@ function Plan() {
   const subjectBoxRef = useRef(null);
   const { user, isAuthenticated } = useAuth();
   console.log("PLAN AUTH:", { isAuthenticated, user });
+
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState('');
 
   const [createPlanLoading, setCreatePlanLoading] = useState(false);
   const [createPlanError, setCreatePlanError] = useState('');
@@ -134,11 +148,15 @@ function Plan() {
   }, [subjects, subjectQuery]);
 
   const courseLabel = (c) => `${selectedSubject?.code ?? ''} ${c?.number ?? ''}`.trim();
+
+    const planCourseIds = useMemo(() => new Set(planItems.map(it => it.course_id)), [planItems]);
+
     const filteredCourses = useMemo(() => {
       const q = searchQuery.trim().toLowerCase();
-      if (!q) return courses.slice(0, 60);
+      const base = courses.filter(c => !planCourseIds.has(c.id));
+      if (!q) return base.slice(0, 60);
 
-      return courses
+      return base
         .filter((c) => {
           const label = courseLabel(c).toLowerCase();
           const title = (c.title || '').toLowerCase();
@@ -146,97 +164,210 @@ function Plan() {
           return label.includes(q) || title.includes(q) || desc.includes(q);
         })
         .slice(0, 60);
-    }, [courses, searchQuery, selectedSubject?.code]);
+    }, [courses, searchQuery, selectedSubject?.code, planCourseIds]);
 
 
 
-  const samplePlans = [
-    {
-      id: 1,
-      title: 'Fall 2025 Schedule',
-      type: 'quarter',
-      period: 'Fall 2025 Quarter',
-      units: 16,
-      courses: [
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' }
-      ]
-    },
-    {
-      id: 2,
-      title: '4 Year Plan',
-      type: 'year',
-      period: '2025-2027 Year',
-      units: 180,
-      courses: [
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'purple' },
-        { code: 'COM SCI 32', color: 'purple' }
-      ]
-    },
-    {
-      id: 3,
-      title: 'Fall 2025 Schedule',
-      type: 'quarter',
-      period: 'Fall 2025 Quarter',
-      units: 16,
-      courses: [
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'purple' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' }
-      ]
-    },
-    {
-      id: 4,
-      title: 'Fall 2025 Schedule',
-      type: 'quarter',
-      period: 'Fall 2025 Quarter',
-      units: 16,
-      courses: [
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'purple' }
-      ]
-    },
-    {
-      id: 5,
-      title: 'Fall 2025 Schedule',
-      type: 'quarter',
-      period: 'Fall 2025 Quarter',
-      units: 16,
-      courses: [
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'orange' },
-        { code: 'COM SCI 32', color: 'green' },
-        { code: 'COM SCI 32', color: 'purple' }
-      ]
+  const loadPlans = async () => {
+    const userId = user?.id;
+    if (!userId) return;
+
+    setPlansLoading(true);
+    setPlansError('');
+    try {
+      const res = await fetch('http://localhost:8000/api/plans/', {
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setPlans(Array.isArray(data?.plans) ? data.plans : []);
+    } catch (e) {
+      setPlansError('Failed to load plans.');
+    } finally {
+      setPlansLoading(false);
     }
-  ];
+  };
 
-  const availableCourses = [
-    { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'orange', warning: false },
-    { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'green', warning: true },
-    { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'orange', warning: false },
-    { code: 'PSYCH 120A', title: 'Introduction to Computer Science II', units: 4, color: 'green', warning: false },
-    { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'purple', warning: false },
-    { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'purple', warning: false },
-    { code: 'COM SCI 32', title: 'Introduction to Computer Science II', units: 4, color: 'green', warning: false }
-  ];
+  useEffect(() => {
+    if (view === 'all-plans' && user?.id) {
+      loadPlans();
+    }
+  }, [view, user?.id]);
+
+  const loadPlanItems = async (planId) => {
+    const userId = user?.id;
+    if (!userId || !planId) return;
+
+    setItemsLoading(true);
+    setItemsError('');
+    try {
+      const res = await fetch(`http://localhost:8000/api/plans/${planId}/items/`, {
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+
+      // Fetch course details before rendering items so names don't flash
+      const missingIds = [...new Set(items.map(it => it.course_id))].filter(id => !courseCache[id]);
+      if (missingIds.length > 0) {
+        try {
+          const cRes = await fetch(`http://localhost:8000/api/courses/by-ids/?ids=${missingIds.join(',')}`);
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            const newCache = {};
+            for (const c of (cData?.courses || [])) {
+              newCache[c.id] = { subjectCode: c.subject_code, number: c.number, title: c.title, units: c.units };
+            }
+            setCourseCache(prev => ({ ...prev, ...newCache }));
+          }
+        } catch (e) {
+          console.error('Failed to fetch course details:', e);
+        }
+      }
+
+      setPlanItems(items);
+    } catch (e) {
+      setItemsError('Failed to load plan items.');
+    } finally {
+      setItemsLoading(false);
+    }
+  };
+
+  const itemsByYearTerm = useMemo(() => {
+    const grid = {};
+    for (let y = 1; y <= YEAR_COUNT; y++) {
+      grid[y] = {};
+      for (const t of TERMS) {
+        grid[y][t] = [];
+      }
+    }
+    for (const item of planItems) {
+      if (grid[item.year_index] && grid[item.year_index][item.term]) {
+        grid[item.year_index][item.term].push(item);
+      }
+    }
+    for (let y = 1; y <= YEAR_COUNT; y++) {
+      for (const t of TERMS) {
+        grid[y][t].sort((a, b) => a.position - b.position);
+      }
+    }
+    return grid;
+  }, [planItems]);
+
+  const handleDrop = async (e, yearNum, term) => {
+    e.preventDefault();
+    setDragOverTarget(null);
+
+    const raw = e.dataTransfer.getData('application/json');
+    if (!raw) return;
+
+    let courseData;
+    try {
+      courseData = JSON.parse(raw);
+    } catch { return; }
+
+    // Move existing item to new year/term
+    if (courseData._planItemId) {
+      const itemId = courseData._planItemId;
+      if (courseData.year_index === yearNum && courseData.term === term) return;
+
+      const userId = user?.id;
+      if (!userId || !selectedPlan?.id) return;
+
+      const existingItems = itemsByYearTerm[yearNum]?.[term] || [];
+      const position = existingItems.length;
+
+      try {
+        const res = await fetch(
+          `http://localhost:8000/api/plans/${selectedPlan.id}/items/${itemId}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+            body: JSON.stringify({ year_index: yearNum, term: term, position: position }),
+          }
+        );
+
+        if (!res.ok) {
+          console.error('Failed to move plan item:', await res.text().catch(() => ''));
+          return;
+        }
+
+        setPlanItems(prev =>
+          prev.map(it => (it.id === itemId ? { ...it, year_index: yearNum, term: term, position: position } : it))
+        );
+      } catch (err) {
+        console.error('Move failed:', err);
+      }
+      return;
+    }
+
+    // New course from sidebar
+    const courseId = courseData.id;
+    if (!courseId || !selectedPlan?.id) return;
+
+    const userId = user?.id;
+    if (!userId) return;
+
+    const existingItems = itemsByYearTerm[yearNum]?.[term] || [];
+    const position = existingItems.length;
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}/items/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+        body: JSON.stringify({
+          year_index: yearNum,
+          term: term,
+          course_id: courseId,
+          status: 'planned',
+          position: position,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error('Failed to create plan item:', errText);
+        return;
+      }
+
+      const created = await res.json();
+      setPlanItems(prev => [...prev, created]);
+
+      setCourseCache(prev => ({
+        ...prev,
+        [courseId]: {
+          ...courseData,
+          subjectCode: courseData.subjectCode || selectedSubject?.code || '',
+        },
+      }));
+    } catch (err) {
+      console.error('Drop failed:', err);
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    const userId = user?.id;
+    if (!userId || !selectedPlan?.id) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/plans/${selectedPlan.id}/items/${itemId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+        }
+      );
+
+      if (res.status === 204 || res.ok) {
+        setPlanItems(prev => prev.filter(it => it.id !== itemId));
+      } else {
+        console.error('Delete failed:', res.status);
+      }
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
+  };
 
   const handleCreateNew = async () => {
     if (createPlanLoading) return;
@@ -271,9 +402,11 @@ function Plan() {
       }
 
       const data = await res.json();
-      const createdPlan = data?.plan ?? data; // depends on your API
+      const createdPlan = data?.plan ?? data;
 
+      setPlans(prev => [createdPlan, ...prev]);
       setSelectedPlan(createdPlan);
+      setPlanItems([]);
       setView('editor');
     } catch (err) {
       console.error(err);
@@ -286,7 +419,9 @@ function Plan() {
 
   const handleOpenPlan = (plan) => {
     setSelectedPlan(plan);
+    setPlanItems([]);
     setView('editor');
+    loadPlanItems(plan.id);
   };
 
   const handleSavePlan = () => {
@@ -297,6 +432,7 @@ function Plan() {
   const handleBackToAll = () => {
     setView('all-plans');
     setSelectedPlan(null);
+    setPlanItems([]);
   };
 
   const toggleYear = (year) => {
@@ -317,10 +453,15 @@ function Plan() {
           {createPlanError && <div className="sidebar-hint error">{createPlanError}</div>}
 
           <div className="plans-grid">
-            {samplePlans.map(plan => (
+            {plansLoading && <div className="sidebar-hint">Loading plans...</div>}
+            {plansError && <div className="sidebar-hint error">{plansError}</div>}
+            {!plansLoading && !plansError && plans.length === 0 && (
+              <div className="sidebar-hint">No plans yet. Create one to get started!</div>
+            )}
+            {plans.map(plan => (
               <div key={plan.id} className="plan-card" onClick={() => handleOpenPlan(plan)}>
                 <div className="plan-card-header">
-                  <h3>{plan.title}</h3>
+                  <h3>{plan.name}</h3>
                   <button className="delete-btn" onClick={(e) => { e.stopPropagation(); }}>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                       <path d="M3 5h14M8 5V3h4v2m-5 0v9m4-9v9M6 5v11a1 1 0 001 1h6a1 1 0 001-1V5" stroke="#999" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -328,14 +469,7 @@ function Plan() {
                   </button>
                 </div>
                 <div className="plan-card-meta">
-                  {plan.period} | {plan.units} Units
-                </div>
-                <div className="plan-card-courses">
-                  {plan.courses.map((course, idx) => (
-                    <div key={idx} className={`course-mini color-${course.color}`}>
-                      {course.code}
-                    </div>
-                  ))}
+                  {plan.start_year ? `Starting ${plan.start_year}` : ''} | Created {new Date(plan.created_at).toLocaleDateString()}
                 </div>
               </div>
             ))}
@@ -461,7 +595,8 @@ function Plan() {
                 className="course-card-sidebar"
                 draggable="true"
                 onDragStart={(e) => {
-                  e.dataTransfer.setData('application/json', JSON.stringify(c));
+                  const dragData = { ...c, subjectCode: selectedSubject?.code || '' };
+                  e.dataTransfer.setData('application/json', JSON.stringify(dragData));
                   e.dataTransfer.setData('text/plain', courseLabel(c));
                 }}
               >
@@ -496,7 +631,7 @@ function Plan() {
           </div>
 
           <div className="plan-title-section">
-            <h1>Schedule 1</h1>
+            <h1>{selectedPlan?.name || 'Untitled Plan'}</h1>
             <button className="edit-title-btn">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M14 2l4 4L6 18H2v-4L14 2z" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -548,187 +683,88 @@ function Plan() {
           </div>
 
           <div className="schedule-section">
-            <div className="year-section">
-              <div className="year-header" onClick={() => toggleYear('year1')}>
-                <h2>Year 1</h2>
-                <div className="year-controls">
-                  <button className="collapse-btn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" stroke="#247ad6" strokeWidth="1.5"/>
-                      <path d="M7 10h6" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                  <button className="expand-btn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" stroke="#247ad6" strokeWidth="1.5"/>
-                      <path d="M7 10h6M10 7v6" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
+            {itemsLoading && <div className="sidebar-hint">Loading plan items...</div>}
+            {itemsError && <div className="sidebar-hint error">{itemsError}</div>}
+
+            {Array.from({ length: YEAR_COUNT }, (_, i) => i + 1).map(yearNum => (
+              <div key={yearNum} className="year-section">
+                <div className="year-header" onClick={() => toggleYear(`year${yearNum}`)}>
+                  <h2>Year {yearNum}</h2>
+                  <div className="year-controls">
+                    <button className="collapse-btn">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="8" stroke="#247ad6" strokeWidth="1.5"/>
+                        <path d="M7 10h6" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </button>
+                    <button className="expand-btn">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="8" stroke="#247ad6" strokeWidth="1.5"/>
+                        <path d="M7 10h6M10 7v6" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+
+                {expandedYears[`year${yearNum}`] && (
+                  <div className="quarters-grid">
+                    {TERMS.map(term => (
+                      <div key={term} className="quarter-column">
+                        <h3>{TERM_LABELS[term]}</h3>
+                        <div
+                          className={`quarter-courses${dragOverTarget?.year === yearNum && dragOverTarget?.term === term ? ' drag-over' : ''}`}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverTarget({ year: yearNum, term });
+                          }}
+                          onDragLeave={() => setDragOverTarget(null)}
+                          onDrop={(e) => handleDrop(e, yearNum, term)}
+                        >
+                          {(itemsByYearTerm[yearNum]?.[term] || []).map(item => {
+                            const cached = courseCache[item.course_id];
+                            return (
+                              <div
+                                key={item.id}
+                                className="course-slot color-green"
+                                draggable="true"
+                                onDragStart={(e) => {
+                                  const dragData = {
+                                    _planItemId: item.id,
+                                    id: item.course_id,
+                                    year_index: item.year_index,
+                                    term: item.term,
+                                    ...(cached || {}),
+                                  };
+                                  e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+                                  e.dataTransfer.effectAllowed = 'move';
+                                }}
+                              >
+                                <div className="course-name">
+                                  {cached ? `${cached.subjectCode || ''} ${cached.number || ''}`.trim() : `Course #${item.course_id}`}
+                                </div>
+                                <div className="course-units">
+                                  {cached ? `${cached.units} units` : ''}
+                                </div>
+                                <button
+                                  className="delete-item-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteItem(item.id);
+                                  }}
+                                  title="Remove from plan"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {expandedYears.year1 && (
-                <div className="quarters-grid">
-                  <div className="quarter-column">
-                    <h3>Fall</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">LIFESCI 15</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">COM SCI 31</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Winter</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">PSYCH 10</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">COM SCI 32</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green warning" draggable="true">
-                        <div className="course-name">PSYCH 135</div>
-                        <div className="course-units">4 units</div>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M8 1l7 14H1L8 1z" fill="#ff9800"/>
-                          <text x="8" y="11" textAnchor="middle" fill="white" fontSize="10">!</text>
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Spring</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">HIST 10B</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">LING 1</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">STATS 10</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Summer A</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">COMPTNG 10A</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Summer C</h3>
-                    <div className="quarter-courses"></div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="year-section">
-              <div className="year-header" onClick={() => toggleYear('year2')}>
-                <h2>Year 2</h2>
-                <div className="year-controls">
-                  <button className="collapse-btn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" stroke="#247ad6" strokeWidth="1.5"/>
-                      <path d="M7 10h6" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                  <button className="expand-btn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" stroke="#247ad6" strokeWidth="1.5"/>
-                      <path d="M7 10h6M10 7v6" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {expandedYears.year2 && (
-                <div className="quarters-grid">
-                  <div className="quarter-column">
-                    <h3>Fall</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">THEATER 10</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">COMPTNG 10B</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Winter</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">EPS SCI 1</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">MATH 31A</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-purple" draggable="true">
-                        <div className="course-name">PSYCH 100A</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Spring</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-orange" draggable="true">
-                        <div className="course-name">SPAN 2</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">MATH 31B</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                      <div className="course-slot color-purple" draggable="true">
-                        <div className="course-name">PSYCH 100B</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Summer A</h3>
-                    <div className="quarter-courses"></div>
-                  </div>
-
-                  <div className="quarter-column">
-                    <h3>Summer C</h3>
-                    <div className="quarter-courses">
-                      <div className="course-slot color-green" draggable="true">
-                        <div className="course-name">PSYCH 85</div>
-                        <div className="course-units">4 units</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         </main>
       </div>
