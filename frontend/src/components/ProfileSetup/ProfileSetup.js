@@ -35,34 +35,37 @@ function ProfileSetup() {
 
   const createUser = async (finalData) => {
     //calling backend to create a user in the supabase auth and userprofile tables
-    try 
-    {
-      console.log("Attempting to create user:", {finalData});
+    try {
+      console.log("Attempting to create user:", { finalData });
       const profile_name = finalData.firstName + " " + finalData.lastName;
       const int_year = Number(finalData.graduationYear)
 
+      const formData = new FormData();
+      formData.append('email', finalData.email);
+      formData.append('password', finalData.password);
+      formData.append('name', profile_name);
+      formData.append('major', finalData.major);
+      formData.append('minor', finalData.minor);
+      formData.append('expected_grad', finalData.graduationQuarter);
+      formData.append('year', int_year);
+
+      if (finalData.uploadedFile) {
+        formData.append('file', finalData.uploadedFile);
+      }
+
       const response = await fetch('http://localhost:8000/api/auth/createUser/', {   //passwords passed via http endpoint which is not good, but django runs http so not sure how to work around this. For now testing with http 
         method: "POST",
-          headers: {
-              'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-              email: finalData.email,
-              password: finalData.password,
-              name: profile_name,
-              major: finalData.major,
-              minor: finalData.minor,
-              expected_grad: finalData.graduationQuarter,
-              year: int_year,
-          }),
+        // headers: {
+        //     'Content-Type': 'application/json' 
+        // }, // Let browser set Content-Type for FormData
+        body: formData,
       });
 
       const data = await response.json();
-      if (response.ok)
-      {
+      if (response.ok) {
         //TEMP FOR TESTING
         console.log("createUser response JSON:", data);
-        localStorage.setItem("token", data.accessToken); 
+        localStorage.setItem("token", data.accessToken);
 
         const backendUserId =
           data.user?.id ?? data.id ?? data.user_id ?? data.profile?.id ?? null;
@@ -87,17 +90,15 @@ function ProfileSetup() {
           units: 0,
           gpa: 0.0,
         });
-        
+
         console.log("stored bruinplan_user:", localStorage.getItem("bruinplan_user"));
         navigate("/profile");
       }
-      else
-      {
+      else {
         console.error("user creation failed:", data || "Unknown error");
       }
     }
-    catch (error)
-    {
+    catch (error) {
       console.error("Error:", error)
     }
   }
@@ -108,7 +109,7 @@ function ProfileSetup() {
     if (currentStep === 5) {
       const finalData = { ...profileData, ...data };
       await createUser(finalData)
-      
+
     } else {
       setCurrentStep(currentStep + 1);
     }

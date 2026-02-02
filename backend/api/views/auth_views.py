@@ -9,6 +9,14 @@ import jwt
 import os
 import pathlib
 import traceback
+from rest_framework.parsers import MultiPartParser, JSONParser, FormParser
+from rest_framework.decorators import parser_classes
+import tempfile
+
+# Import parsing logic
+from dars_parser.extract_dars_text import extract_text_pdfminer
+from dars_parser.get_taken_courses import extract_taken_courses
+from dars_parser.get_needed_courses_from_audit import extract_requirements
 
 
 #loading in .env file
@@ -75,9 +83,50 @@ def apply_profile_updates(user_profile, data):
 
 
 @api_view(["POST"])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def createUser(request):
     try:
         print("CREATE USER REQUEST DATA:", request.data)
+
+        # --- DARS Parsing (Pre-User Creation) ---
+        taken_list = []
+        requirements = []
+        dars_connected = False
+        
+        if 'file' in request.FILES:
+            uploaded_file = request.FILES['file']
+            suffix = '.pdf' if uploaded_file.name.lower().endswith('.pdf') else '.txt'
+            tmp_path = None
+            
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    for chunk in uploaded_file.chunks():
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
+
+                if suffix == '.pdf':
+                    text = extract_text_pdfminer(tmp_path)
+                else:
+                    with open(tmp_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        text = f.read()
+
+                taken_courses_data = extract_taken_courses(text)
+                taken_courses_set = {c for q, c in taken_courses_data}
+                
+                requirements = extract_requirements(text, taken_courses=taken_courses_set)
+                
+                taken_list = [{'quarter': q, 'course': c} for q, c in taken_courses_data]
+                dars_connected = True
+
+            except Exception as e:
+                print(f"DARS parsing failed: {e}")
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                return Response({'error': f"Failed to parse DARS file: {str(e)}"}, status=400)
+                
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
 
         # --- Env vars ---
         supabase_url = os.getenv("SUPABASE_URL")
@@ -122,7 +171,11 @@ def createUser(request):
         user_id = res.user.id
 
         # --- Create local profile row (let DB default created_at handle it) ---
-        new_user = UserProfile(id=user_id)
+        new_user = UserProfile(
+            id=user_id,
+            classes_taken=taken_list,
+            classes_needed=requirements
+        )
 
         try:
             new_user.save()
@@ -133,16 +186,43 @@ def createUser(request):
             )
 
         # --- Optional profile fields (sanitize "None"/"" first) ---
-        cleaned = dict(request.data)
+        if hasattr(request.data, 'dict'):
+             cleaned = request.data.dict()
+        else:
+             cleaned = dict(request.data)
+        
+        # Remove null/none strings
         for k, v in list(cleaned.items()):
             if isinstance(v, str) and v.strip().lower() in ("none", "null", ""):
                 cleaned[k] = None
+        
+        # Explicit type conversion for FormData (all strings)
+        # We need to handle year, completed_lower_div_units, completed_upper_div_units, gpa
+        numeric_fields = {
+            'year': int,
+            'completed_lower_div_units': int,
+            'completed_upper_div_units': int,
+            'gpa': float
+        }
+        
+        for field, func in numeric_fields.items():
+            if field in cleaned and cleaned[field] is not None:
+                try:
+                    cleaned[field] = func(cleaned[field])
+                except (ValueError, TypeError):
+                    print(f"Failed to convert {field} '{cleaned[field]}' to {func.__name__}")
+                    # Remove invalid field so it doesn't cause TypeError in apply_profile_updates
+                    del cleaned[field]
+        
+        print("Cleaned profile data before update:", cleaned)
 
         try:
             apply_profile_updates(new_user, cleaned)
             new_user.save()
+            print("Profile updated successfully")
         except Exception as e:
-            print(f"Warning: optional profile details not fully applied: {e}")
+            print(f"ERROR applying profile updates: {e}")
+            traceback.print_exc()
 
         # --- Login (use anon key; service role key is not meant for normal sign-in) ---
         access_token = None
@@ -161,15 +241,14 @@ def createUser(request):
             "user": {
                 "id": str(new_user.id),
                 "email": new_user.email if hasattr(new_user, "email") else email,
-                "first_name": getattr(new_user, "first_name", None),
-                "last_name": getattr(new_user, "last_name", None),
+                "name": getattr(new_user, "name", None),
                 "major": getattr(new_user, "major", None),
                 "minor": getattr(new_user, "minor", None),
                 "graduation_year": getattr(new_user, "graduation_year", None),
                 "graduation_quarter": getattr(new_user, "graduation_quarter", None),
                 "units": getattr(new_user, "units", None),
                 "gpa": getattr(new_user, "gpa", None),
-                "dars_connected": getattr(new_user, "dars_connected", None),
+                "dars_connected": dars_connected,
                 "created_at": new_user.created_at,
             },
             "message": "User successfully created",
