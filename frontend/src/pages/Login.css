@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f8f8f8;
   padding: 20px;
 }
 
@@ -34,6 +34,98 @@
   margin: 0;
 }
 
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.login-form-group input {
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-form-group input:focus {
+  outline: none;
+  border-color: #247ad6;
+}
+
+.login-form-group input::placeholder {
+  color: #999;
+}
+
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -4px;
+}
+
+.login-remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+}
+
+.login-remember-me input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #247ad6;
+  cursor: pointer;
+}
+
+.login-forgot-password {
+  font-size: 14px;
+  color: #247ad6;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-forgot-password:hover {
+  text-decoration: underline;
+}
+
+.login-submit-btn {
+  background: #247ad6;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: 'Inter', sans-serif;
+  margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.login-submit-btn:hover {
+  background: #1d6bb8;
+}
+
 .login-footer {
   text-align: center;
   margin-top: 24px;
@@ -41,12 +133,16 @@
   color: #666;
 }
 
-.signup-link {
+.login-footer p {
+  margin: 0;
+}
+
+.login-signup-link {
   color: #247ad6;
   cursor: pointer;
   font-weight: 600;
 }
 
-.signup-link:hover {
+.login-signup-link:hover {
   text-decoration: underline;
 }
