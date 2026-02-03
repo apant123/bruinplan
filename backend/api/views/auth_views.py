@@ -266,6 +266,95 @@ def createUser(request):
         return Response({"error": str(e)}, status=500)
 
 
+@api_view(["POST"])
+@parser_classes([JSONParser])
+def loginUser(request):
+    try:
+        print("LOGIN USER REQUEST DATA:", request.data)
+
+        # --- Env vars ---
+        supabase_url = os.getenv("SUPABASE_URL")
+        anon_key = os.getenv("SUPABASE_ANON_KEY")
+
+        if not supabase_url or not anon_key:
+            return Response(
+                {"error": "Missing SUPABASE_URL or SUPABASE_ANON_KEY"},
+                status=500,
+            )
+
+        # --- Required fields ---
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if not email or not password:
+            return Response(
+                {"error": "Email and password are required"},
+                status=400,
+            )
+
+        email = email.strip()
+        password = password.strip()
+
+        # --- Supabase sign-in ---
+        user_client: Client = create_client(supabase_url, anon_key)
+
+        access_token = None
+        if anon_key:
+            try:
+                login_res = user_client.auth.sign_in_with_password({"email": email, "password": password})
+                if login_res and getattr(login_res, "session", None):
+                    access_token = login_res.session.access_token
+                else:
+                    return Response({"error": "Invalid email or password"}, status=401,)
+            except Exception as e:
+                return Response({"error": f"{e}"}, status=401)
+        else:
+            return Response({"error": "SUPABASE_ANON_KEY missing"})
+
+
+        if not login_res or not getattr(login_res, "session", None):
+            return Response(
+                {"error": "Invalid email or password"},
+                status=401,
+            )
+
+        session = login_res.session
+        supabase_user = login_res.user
+        user_id = supabase_user.id
+
+        # --- Fetch local profile ---
+        try:
+            user_profile = UserProfile.objects.get(id=user_id)
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"error": "User profile not found"},
+                status=404,
+            )
+
+        # --- Response payload ---
+        payload = {
+            "user": {
+                "id": str(user_profile.id),
+                "email": supabase_user.email,
+                "name": getattr(user_profile, "name", None),
+                "major": getattr(user_profile, "major", None),
+                "minor": getattr(user_profile, "minor", None),
+                "graduation_year": getattr(user_profile, "graduation_year", None),
+                "graduation_quarter": getattr(user_profile, "graduation_quarter", None),
+                "units": getattr(user_profile, "units", None),
+                "gpa": getattr(user_profile, "gpa", None),
+                "dars_connected": bool(user_profile.classes_taken),
+                "created_at": user_profile.created_at,
+            },
+            "accessToken": session.access_token,
+            "message": "User successfully logged in",
+        }
+
+        return Response(payload, status=200)
+
+    except Exception as e:
+        traceback.print_exc()
+        return Response({"error": "Internal server error"}, status=500)
 
 @api_view(["GET"])
 def getProfile(request):
