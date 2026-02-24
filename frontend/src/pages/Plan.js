@@ -224,55 +224,169 @@ function Plan() {
     let courseData;
     try { courseData = JSON.parse(raw); } catch { return; }
 
+    const userId = user?.id;
+    const planId = selectedPlan?.id;
+    if (!userId || !planId) return;
+
+    // --- MOVE EXISTING PLAN ITEM ---
     if (courseData._planItemId) {
       const itemId = courseData._planItemId;
+
+      // If dropped into same bucket, do nothing.
       if (courseData.year_index === yearNum && courseData.term === term) return;
-      const userId = user?.id;
-      if (!userId || !selectedPlan?.id) return;
+
       const existingItems = itemsByYearTerm[yearNum]?.[term] || [];
       const position = existingItems.length;
+
+      // Snapshot for rollback
+      const prevItems = planItems;
+
+      // Optimistic UI update: move immediately
+      setPlanItems(prev =>
+        prev.map(it => (it.id === itemId ? { ...it, year_index: yearNum, term, position } : it))
+      );
+
       try {
         const res = await fetch(
-          `http://localhost:8000/api/plans/${selectedPlan.id}/items/${itemId}`,
-          { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-User-Id': userId }, body: JSON.stringify({ year_index: yearNum, term, position }) }
+          `http://localhost:8000/api/plans/${planId}/items/${itemId}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+            body: JSON.stringify({ year_index: yearNum, term, position }),
+          }
         );
-        if (!res.ok) { console.error('Failed to move plan item:', await res.text().catch(() => '')); return; }
-        setPlanItems(prev => prev.map(it => (it.id === itemId ? { ...it, year_index: yearNum, term, position } : it)));
-      } catch (err) { console.error('Move failed:', err); }
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => '');
+          throw new Error(`HTTP ${res.status} ${txt}`);
+        }
+
+        // Optional: if backend returns canonical item, you can merge it here.
+        // const updated = await res.json();
+        // setPlanItems(prev => prev.map(it => (it.id === itemId ? updated : it)));
+      } catch (err) {
+        console.error('Move failed:', err);
+        // Rollback
+        setPlanItems(prevItems);
+      }
       return;
     }
 
-    const courseId = courseData.id;
-    if (!courseId || !selectedPlan?.id) return;
-    const userId = user?.id;
-    if (!userId) return;
+    // --- ADD NEW COURSE AS PLAN ITEM ---
+    const courseId = courseData?.id;
+    if (!courseId) return;
+
+    // Optional guard: avoid duplicates (you already compute planCourseIds)
+    if (planCourseIds.has(courseId)) return;
+
     const existingItems = itemsByYearTerm[yearNum]?.[term] || [];
     const position = existingItems.length;
 
+    // Create an optimistic temp item
+    const tempId = `temp-${Date.now()}-${courseId}`;
+    const optimisticItem = {
+      id: tempId,
+      plan_id: planId,
+      year_index: yearNum,
+      term,
+      course_id: courseId,
+      status: 'planned',
+      position,
+      notes: null,
+      created_at: new Date().toISOString(),
+      _optimistic: true,
+    };
+
+    // Optimistically add to UI right away
+    setPlanItems(prev => [...prev, optimisticItem]);
+
+    // (Optional) cache for label rendering (do it now so UI has text immediately)
+    setCourseCache(prev => ({
+      ...prev,
+      [courseId]: {
+        ...prev[courseId],
+        ...courseData,
+        subjectCode: courseData.subjectCode || selectedSubject?.code || '',
+      },
+    }));
+
     try {
-      const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}/items/`, {
+      const res = await fetch(`http://localhost:8000/api/plans/${planId}/items/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
-        body: JSON.stringify({ year_index: yearNum, term, course_id: courseId, status: 'planned', position }),
+        body: JSON.stringify({
+          year_index: yearNum,
+          term,
+          course_id: courseId,
+          status: 'planned',
+          position,
+        }),
       });
-      if (!res.ok) { console.error('Failed to create plan item:', await res.text().catch(() => '')); return; }
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${txt}`);
+      }
+
       const created = await res.json();
-      setPlanItems(prev => [...prev, created]);
-      setCourseCache(prev => ({ ...prev, [courseId]: { ...courseData, subjectCode: courseData.subjectCode || selectedSubject?.code || '' } }));
-    } catch (err) { console.error('Drop failed:', err); }
+
+      // Replace temp item with created item from server
+      setPlanItems(prev => prev.map(it => (it.id === tempId ? created : it)));
+    } catch (err) {
+      console.error('Drop failed:', err);
+
+      // Remove optimistic item
+      setPlanItems(prev => prev.filter(it => it.id !== tempId));
+
+      // (Optional) also remove cache entry if you only created it for this drop
+      // setCourseCache(prev => {
+      //   const copy = { ...prev };
+      //   delete copy[courseId];
+      //   return copy;
+      // });
+    }
   };
 
   const handleDeleteItem = async (itemId) => {
     const userId = user?.id;
-    if (!userId || !selectedPlan?.id) return;
+    const planId = selectedPlan?.id;
+    if (!userId || !planId || !itemId) return;
+
+    // Snapshot for rollback
+    let removedItem = null;
+
+    // Optimistic UI: remove immediately
+    setPlanItems((prev) => {
+      removedItem = prev.find((it) => it.id === itemId) || null;
+      return prev.filter((it) => it.id !== itemId);
+    });
+
     try {
       const res = await fetch(
-        `http://localhost:8000/api/plans/${selectedPlan.id}/items/${itemId}`,
-        { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'X-User-Id': userId } }
+        `http://localhost:8000/api/plans/${planId}/items/${itemId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+        }
       );
-      if (res.status === 204 || res.ok) setPlanItems(prev => prev.filter(it => it.id !== itemId));
-      else console.error('Delete failed:', res.status);
-    } catch (err) { console.error('Delete failed:', err); }
+
+      // Treat 204 as success; res.ok also covers it.
+      if (!(res.status === 204 || res.ok)) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${txt}`);
+      }
+    } catch (err) {
+      console.error('Delete failed:', err);
+
+      // Rollback: re-insert the item if we removed it
+      if (removedItem) {
+        setPlanItems((prev) => {
+          // Avoid duplicates if something else re-added it
+          if (prev.some((it) => it.id === removedItem.id)) return prev;
+          return [...prev, removedItem];
+        });
+      }
+    }
   };
 
   const handleCreateNew = async () => {
