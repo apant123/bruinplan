@@ -256,3 +256,44 @@ def plan_item_detail_view(request, plan_id: int, item_id: int):
     if request.method == "DELETE":
         item.delete()
         return Response(status=204)
+
+
+
+@api_view(["PUT", "PATCH", "DELETE"])
+def plan_detail_view(request, plan_id: int):
+    _debug_auth(request)
+
+    plan_user_id, err = _resolve_plan_user_id(request)
+    if err:
+        return err
+
+    # Make sure plan exists AND belongs to this user
+    plan = Plan.objects.filter(id=plan_id, user_id=plan_user_id).first()
+    if not plan:
+        return Response({"error": "plan not found (or not yours)"}, status=404)
+
+    if request.method in ("PUT", "PATCH"):
+        data = request.data
+
+        if "name" in data:
+            if not isinstance(data["name"], str) or not data["name"].strip():
+                return Response({"error": "invalid name"}, status=400)
+            plan.name = data["name"].strip()
+
+        if "start_year" in data:
+            plan.start_year = data["start_year"]
+
+        plan.save()
+
+        return Response({
+            "id": plan.id,
+            "user_id": str(plan.user_id),
+            "name": plan.name,
+            "start_year": plan.start_year,
+            "created_at": plan.created_at,
+            "updated_at": plan.updated_at,
+        })
+
+    if request.method == "DELETE":
+        plan.delete()
+        return Response(status=204)
