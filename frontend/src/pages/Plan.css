@@ -442,6 +442,20 @@
   margin: 0;
 }
 
+.plan-title-input {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  border: none;
+  border-bottom: 2px solid #247ad6;
+  outline: none;
+  background: transparent;
+  padding: 0 0 2px 0;
+  font-family: inherit;
+  min-width: 200px;
+}
+
 .edit-title-btn {
   background: none;
   border: none;

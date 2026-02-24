@@ -11,6 +11,11 @@ function NavBar() {
   const handleLinkClick = (e, path) => {
     if (!isAuthenticated) {
       e.preventDefault();
+      return;
+    }
+    if (path === '/plan' && location.pathname === '/plan') {
+      e.preventDefault();
+      navigate('/plan', { state: { resetKey: Date.now() } });
     }
   };
 

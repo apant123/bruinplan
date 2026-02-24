@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import './Plan.css';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +38,9 @@ function Plan() {
   const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const subjectBoxRef = useRef(null);
   const { user } = useAuth();
+  const location = useLocation();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState('');
 
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
@@ -107,6 +111,16 @@ function Plan() {
     document.addEventListener('mousedown', onDocMouseDown);
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, []);
+
+  // Reset to plans list when navbar "Plan" link is clicked
+  useEffect(() => {
+    if (location.state?.resetKey) {
+      setView('all-plans');
+      setSelectedPlan(null);
+      setPlanItems([]);
+      setIsEditingName(false);
+    }
+  }, [location.state?.resetKey]);
 
   // --- Computed values ---
 
@@ -494,8 +508,65 @@ function Plan() {
           </div>
 
           <div className="plan-title-section">
-            <h1>{selectedPlan?.name || 'Untitled Plan'}</h1>
-            <button className="edit-title-btn">
+            {isEditingName ? (
+              <input
+                className="plan-title-input"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                autoFocus
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const trimmed = editingName.trim();
+                    if (!trimmed || trimmed === selectedPlan?.name) {
+                      setIsEditingName(false);
+                      return;
+                    }
+                    try {
+                      const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json', 'X-User-Id': user?.id },
+                        body: JSON.stringify({ name: trimmed }),
+                      });
+                      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                      setSelectedPlan(prev => ({ ...prev, name: trimmed }));
+                      setPlans(prev => prev.map(p => p.id === selectedPlan.id ? { ...p, name: trimmed } : p));
+                    } catch (err) {
+                      console.error('Rename failed:', err);
+                    }
+                    setIsEditingName(false);
+                  } else if (e.key === 'Escape') {
+                    setIsEditingName(false);
+                  }
+                }}
+                onBlur={async () => {
+                  const trimmed = editingName.trim();
+                  if (!trimmed || trimmed === selectedPlan?.name) {
+                    setIsEditingName(false);
+                    return;
+                  }
+                  try {
+                    const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json', 'X-User-Id': user?.id },
+                      body: JSON.stringify({ name: trimmed }),
+                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    setSelectedPlan(prev => ({ ...prev, name: trimmed }));
+                    setPlans(prev => prev.map(p => p.id === selectedPlan.id ? { ...p, name: trimmed } : p));
+                  } catch (err) {
+                    console.error('Rename failed:', err);
+                  }
+                  setIsEditingName(false);
+                }}
+              />
+            ) : (
+              <h1>{selectedPlan?.name || 'Untitled Plan'}</h1>
+            )}
+            <button className="edit-title-btn" onClick={() => {
+              setEditingName(selectedPlan?.name || '');
+              setIsEditingName(true);
+            }}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M14 2l4 4L6 18H2v-4L14 2z" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
