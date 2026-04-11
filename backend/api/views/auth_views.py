@@ -17,6 +17,8 @@ import tempfile
 from dars_parser.extract_dars_text import extract_text_pdfminer
 from dars_parser.get_taken_courses import extract_taken_courses
 from dars_parser.get_needed_courses_from_audit import extract_requirements
+from dars_parser.extract_gpa import extract_gpa_from_dars
+from dars_parser.extract_units import extract_total_units_from_dars
 
 
 #loading in .env file
@@ -92,6 +94,8 @@ def createUser(request):
         taken_list = []
         requirements = []
         dars_connected = False
+        gpa = None
+        total_units = None
         
         if 'file' in request.FILES:
             uploaded_file = request.FILES['file']
@@ -117,6 +121,8 @@ def createUser(request):
                 
                 taken_list = [{'quarter': q, 'course': c} for q, c in taken_courses_data]
                 dars_connected = True
+                gpa = extract_gpa_from_dars(text)
+                total_units = extract_total_units_from_dars(text)
 
             except Exception as e:
                 print(f"DARS parsing failed: {e}")
@@ -174,7 +180,9 @@ def createUser(request):
         new_user = UserProfile(
             id=user_id,
             classes_taken=taken_list,
-            classes_needed=requirements
+            classes_needed=requirements,
+            gpa=gpa,
+            total_units=total_units
         )
 
         try:
@@ -247,6 +255,7 @@ def createUser(request):
                 "graduation_year": getattr(new_user, "graduation_year", None),
                 "graduation_quarter": getattr(new_user, "graduation_quarter", None),
                 "units": getattr(new_user, "units", None),
+                "total_units": getattr(new_user, "total_units", None),
                 "gpa": getattr(new_user, "gpa", None),
                 "dars_connected": dars_connected,
                 "created_at": new_user.created_at,
@@ -342,6 +351,7 @@ def loginUser(request):
                 "graduation_year": getattr(user_profile, "graduation_year", None),
                 "graduation_quarter": getattr(user_profile, "graduation_quarter", None),
                 "units": getattr(user_profile, "units", None),
+                "total_units": getattr(user_profile, "total_units", None),
                 "gpa": getattr(user_profile, "gpa", None),
                 "dars_connected": bool(user_profile.classes_taken),
                 "created_at": user_profile.created_at,

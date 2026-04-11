@@ -26,14 +26,15 @@ export const AuthProvider = ({ children }) => {
   const signup = (apiUser) => {
     const userProfile = {
       id: apiUser.id,             
-      firstName: apiUser.first_name,
-      lastName: apiUser.last_name,
+      firstName: apiUser.first_name || (apiUser.name ? apiUser.name.split(' ')[0] : ""),
+      lastName: apiUser.last_name || (apiUser.name ? apiUser.name.split(' ').slice(1).join(' ') : ""),
       email: apiUser.email,
       major: apiUser.major || "",
       minor: apiUser.minor || "",
       graduationYear: apiUser.graduation_year || "",
       graduationQuarter: apiUser.graduation_quarter || "",
-      units: apiUser.units || 0,
+      totalUnits: apiUser.total_units || 0,
+      units: apiUser.total_units || apiUser.units || 0,
       gpa: apiUser.gpa || 0.0,
       darsConnected: apiUser.dars_connected || false,
     };

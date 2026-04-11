@@ -48,7 +48,7 @@ function Profile() {
 
               <div className="profile-stats">
                 <div className="stat">
-                  <div className="stat-value">{user.units || 0}</div>
+                  <div className="stat-value">{user.totalUnits || user.units || 0}</div>
                   <div className="stat-label">UNITS</div>
                 </div>
                 <div className="stat">

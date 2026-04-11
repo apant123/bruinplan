@@ -86,9 +86,10 @@ function ProfileSetup() {
           minor: finalData.minor,
           graduation_year: finalData.graduationYear,
           graduation_quarter: finalData.graduationQuarter,
-          dars_connected: finalData.darsOption === "sync",
-          units: 0,
-          gpa: 0.0,
+          dars_connected: data.user?.dars_connected ?? (finalData.darsOption === "sync"),
+          units: data.user?.units || 0,
+          total_units: data.user?.total_units || 0,
+          gpa: data.user?.gpa || 0.0,
         });
 
         console.log("stored bruinplan_user:", localStorage.getItem("bruinplan_user"));

@@ -10,6 +10,8 @@ import os
 from dars_parser.extract_dars_text import extract_text_pdfminer
 from dars_parser.get_taken_courses import extract_taken_courses
 from dars_parser.get_needed_courses_from_audit import extract_requirements
+from dars_parser.extract_gpa import extract_gpa_from_dars
+from dars_parser.extract_units import extract_total_units_from_dars
 
 from api.models import UserProfile
 
@@ -25,6 +27,8 @@ def upload_audit(request):
     # 1. Parse File if present
     taken_list = []
     requirements = []
+    gpa = None
+    total_units = None
     
     if 'file' in request.FILES:
         uploaded_file = request.FILES['file']
@@ -56,6 +60,9 @@ def upload_audit(request):
             
             # Format the taken courses
             taken_list = [{'quarter': q, 'course': c} for q, c in taken_courses_data]
+            
+            gpa = extract_gpa_from_dars(text)
+            total_units = extract_total_units_from_dars(text)
             
         except Exception as e:
             # If parsing fails, we still might want to proceed creating the user 
@@ -95,7 +102,9 @@ def upload_audit(request):
             year=year_int,
             expected_grad=grad_quarter,
             classes_taken=taken_list,
-            classes_needed=requirements
+            classes_needed=requirements,
+            gpa=gpa,
+            total_units=total_units
         )
 
         return Response({

@@ -29,6 +29,8 @@ class UserProfile(models.Model):
 
     completed_lower_div_units = models.IntegerField(null=True)
     completed_upper_div_units = models.IntegerField(null=True)
+    
+    total_units = models.DecimalField(max_digits=5, decimal_places=1, null=True)
 
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True)
 
