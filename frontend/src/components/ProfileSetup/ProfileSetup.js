@@ -14,9 +14,14 @@ import './ProfileSetup.css';
 
 function ProfileSetup() {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, isAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  
+  // If the user is authenticated, we are deliberately redirecting 
+  // so lock the UI into creating mode to suppress unmount flickers
+  const isNavigating = isCreatingUser || isAuthenticated;
 
   const [profileData, setProfileData] = useState({
     firstName: '',
@@ -72,20 +77,19 @@ function ProfileSetup() {
 
         if (!backendUserId) {
           console.error("No user id returned from backend. Response:", data);
+          alert("Error: No user ID returned from backend.");
           return;
         }
-        // Create user account with the profile data
+        // ... (rest of success logic)
         signup({
           id: backendUserId,
-          // IMPORTANT: map snake_case if your signup() expects it,
-          // OR update signup() to accept camelCase.
           first_name: finalData.firstName,
           last_name: finalData.lastName,
           email: finalData.email,
-          major: finalData.major,
-          minor: finalData.minor,
-          graduation_year: finalData.graduationYear,
-          graduation_quarter: finalData.graduationQuarter,
+          major: data.user?.major || finalData.major,
+          minor: data.user?.minor || finalData.minor,
+          graduation_year: data.user?.graduation_year || finalData.graduationYear,
+          graduation_quarter: data.user?.graduation_quarter || finalData.graduationQuarter,
           dars_connected: data.user?.dars_connected ?? (finalData.darsOption === "sync"),
           units: data.user?.units || 0,
           total_units: data.user?.total_units || 0,
@@ -94,13 +98,17 @@ function ProfileSetup() {
 
         console.log("stored bruinplan_user:", localStorage.getItem("bruinplan_user"));
         navigate("/profile");
+        return true;
       }
       else {
         console.error("user creation failed:", data || "Unknown error");
+        // The user explicitly requested to remove the alert if the backend duplicate-email trigger fires, as it works as expected on their end.
+        return false;
       }
     }
     catch (error) {
       console.error("Error:", error)
+      return false;
     }
   }
 
@@ -124,12 +132,18 @@ function ProfileSetup() {
     setShowUploadModal(true);
   };
 
-  const handleFileUpload = (file) => {
-    setProfileData({ ...profileData, uploadedFile: file });
-    console.log('DAR file uploaded!', { ...profileData, uploadedFile: file });
+  const handleFileUpload = async (file) => {
+    const finalData = { ...profileData, uploadedFile: file };
+    setProfileData(finalData);
+    console.log('DAR file uploaded!', finalData);
     setShowUploadModal(false);
-    // Move to Academic Program after upload
-    setCurrentStep(4);
+    
+    // Move immediately to account creation if DARS is uploaded
+    setIsCreatingUser(true);
+    const success = await createUser(finalData);
+    if (!success && !isAuthenticated) {
+      setIsCreatingUser(false);
+    }
   };
 
   const handleCompleteSetup = (data) => {
@@ -154,11 +168,62 @@ function ProfileSetup() {
           <p className="profile-setup-subtitle">Profile Setup</p>
         </div>
 
-        {currentStep !== 3.5 && (
+        {currentStep !== 3.5 && !isCreatingUser && (
           <ProgressBar currentStep={Math.floor(currentStep)} totalSteps={totalSteps} />
         )}
 
-        <div className="profile-setup-card-container">
+        {isNavigating ? (
+          <div className="loading-card" style={{ 
+            display: "flex", 
+            flexDirection: "column", 
+            alignItems: "center", 
+            justifyContent: "center", 
+            gap: "20px", 
+            padding: "40px",
+            backgroundColor: "white",
+            borderRadius: "16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+            width: "550px",
+            marginTop: "20px"
+          }}>
+            <h2 style={{ margin: 0, color: "#247ad6", fontFamily: 'Inter', fontWeight: 600 }}>Building Your Profile</h2>
+            <p style={{ margin: 0, color: "#666", textAlign: "center", lineHeight: "1.6", fontSize: "16px" }}>
+              We're analyzing your DARS text to instantly set up your major, minor, and graduation parameters...
+            </p>
+            <div className="spinner-container" style={{ position: "relative", width: "64px", height: "64px", marginTop: "15px" }}>
+              <style>
+                {`
+                  @keyframes dash {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                  @keyframes pulse-cap {
+                    0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.8; }
+                    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+                    100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.8; }
+                  }
+                `}
+              </style>
+              <div style={{
+                position: "absolute",
+                top: 0, left: 0, right: 0, bottom: 0,
+                border: "4px solid #f3f3f3",
+                borderTop: "4px solid #247ad6",
+                borderRadius: "50%",
+                animation: "dash 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: "50%", left: "50%",
+                animation: "pulse-cap 2s ease-in-out infinite",
+                fontSize: "1.5rem"
+              }}>
+                🎓
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="profile-setup-card-container">
           {currentStep === 1 && (
             <WelcomePage onNext={handleNext} />
           )}
@@ -183,6 +248,7 @@ function ProfileSetup() {
             <ExpectedGraduation onNext={handleNext} onBack={handleBack} />
           )}
         </div>
+        )}
       </div>
 
       <UploadModal
