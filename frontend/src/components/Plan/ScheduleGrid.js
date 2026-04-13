@@ -1,4 +1,5 @@
 import React from 'react';
+import { getSubjectColorCode } from '../../utils/colors';
 
 const TERMS = ['FALL', 'WINTER', 'SPRING', 'SUMMER_A', 'SUMMER_C'];
 const TERM_LABELS = { FALL: 'Fall', WINTER: 'Winter', SPRING: 'Spring', SUMMER_A: 'Summer A', SUMMER_C: 'Summer C' };
@@ -18,7 +19,12 @@ function ScheduleGrid({
 }) {
   return (
     <div className="schedule-section">
-      {itemsLoading && <div className="sidebar-hint">Loading plan items...</div>}
+      {itemsLoading && (
+        <div className="schedule-loading-overlay">
+          <div className="spinner"></div>
+          <p>Loading your courses...</p>
+        </div>
+      )}
       {itemsError && <div className="sidebar-hint error">{itemsError}</div>}
 
       {Array.from({ length: YEAR_COUNT }, (_, i) => i + 1).map(yearNum => (
@@ -57,10 +63,13 @@ function ScheduleGrid({
                   >
                     {(itemsByYearTerm[yearNum]?.[term] || []).map(item => {
                       const cached = courseCache[item.course_id];
+                      const subjectString = cached ? cached.subjectCode : `Course ${item.course_id}`;
+                      const colors = getSubjectColorCode(subjectString);
                       return (
                         <div
                           key={item.id}
-                          className="course-slot color-green"
+                          className="course-slot"
+                          style={{ backgroundColor: colors.bg, borderLeftColor: colors.border }}
                           draggable="true"
                           onDragStart={(e) => {
                             const dragData = {

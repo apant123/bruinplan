@@ -1,4 +1,5 @@
 import React from 'react';
+import { getSubjectColorCode } from '../../utils/colors';
 
 function CourseSidebar({
   searchQuery,
@@ -122,10 +123,13 @@ function CourseSidebar({
         {coursesLoading && <div className="sidebar-hint">Loading courses…</div>}
         {coursesError && <div className="sidebar-hint error">{coursesError}</div>}
 
-        {!coursesLoading && !coursesError && filteredCourses.map((c) => (
+        {!coursesLoading && !coursesError && filteredCourses.map((c) => {
+          const colors = getSubjectColorCode(selectedSubject?.code || '');
+          return (
           <div
             key={c.id}
             className="course-card-sidebar"
+            style={{ backgroundColor: colors.bg, borderLeftColor: colors.border }}
             draggable="true"
             onDragStart={(e) => {
               const dragData = { ...c, subjectCode: selectedSubject?.code || '' };
@@ -139,7 +143,7 @@ function CourseSidebar({
             <div className="course-title">{c.title}</div>
             <div className="course-units">{c.units} units</div>
           </div>
-        ))}
+        )})}
       </div>
 
     </aside>

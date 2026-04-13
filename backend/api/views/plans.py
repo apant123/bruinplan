@@ -5,7 +5,7 @@ import uuid
 from django.db import IntegrityError
 
 
-from api.models import Plan, UserProfile, PlanItem
+from api.models import Plan, UserProfile, PlanItem, Course, Subject
 
 def _debug_auth(request):
     print("=== AUTH DEBUG ===")
@@ -76,6 +76,84 @@ def plans_view(request):
         name=name.strip(),
         start_year=start_year,
     )
+
+    # Auto-populate from classes_taken
+    user_profile = UserProfile.objects.filter(id=plan_user_id).first()
+    if user_profile and user_profile.classes_taken and isinstance(user_profile.classes_taken, list):
+        parsed_classes = []
+        min_acad_year = 9999
+        for cls_obj in user_profile.classes_taken:
+            course_name = cls_obj.get("course")
+            quarter = cls_obj.get("quarter")
+            if not course_name or not quarter or len(quarter) < 4:
+                continue
+                
+            term_code = quarter[:2].upper()
+            try:
+                year_val = int(quarter[2:]) + 2000
+            except ValueError:
+                continue
+                
+            if term_code in ["WI", "SP", "SU"]:
+                acad_year = year_val - 1
+            else:
+                acad_year = year_val
+                
+            if acad_year < min_acad_year:
+                min_acad_year = acad_year
+                
+            parsed_classes.append({
+                "course_name": course_name,
+                "term_code": term_code,
+                "acad_year": acad_year
+            })
+            
+        if parsed_classes:
+            p.start_year = min_acad_year
+            p.save()
+            
+            term_map = {
+                "FA": PlanItem.Term.FALL,
+                "WI": PlanItem.Term.WINTER,
+                "SP": PlanItem.Term.SPRING,
+                "SU": PlanItem.Term.SUMMER_C,
+            }
+            
+            from collections import defaultdict
+            positions = defaultdict(int)
+            
+            for p_cls in parsed_classes:
+                y_index = p_cls["acad_year"] - min_acad_year + 1
+                t = term_map.get(p_cls["term_code"])
+                if not t:
+                    continue
+                    
+                c_parts = p_cls["course_name"].rsplit(" ", 1)
+                if len(c_parts) != 2:
+                    continue
+                    
+                sub_code, num = c_parts[0], c_parts[1]
+                
+                subject = Subject.objects.filter(code__iexact=sub_code).first()
+                if not subject:
+                    continue
+                    
+                course = Course.objects.filter(subject_area_id=subject.id, number__iexact=num).first()
+                if not course:
+                    continue
+                    
+                pos_key = (y_index, t)
+                pos = positions[pos_key]
+                positions[pos_key] += 1
+                
+                PlanItem.objects.create(
+                    plan_id=p.id,
+                    year_index=y_index,
+                    term=t,
+                    course_id=course.id,
+                    status=PlanItem.Status.COMPLETED,
+                    position=pos
+                )
 
     return Response(
         {

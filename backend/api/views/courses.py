@@ -49,6 +49,7 @@ def courses_by_ids(request):
             "number": c.number,
             "title": c.title,
             "units": c.units,
+            "requisites_parsed": c.requisites_parsed,
         })
     return Response({"courses": data})
 

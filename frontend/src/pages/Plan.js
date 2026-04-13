@@ -22,6 +22,7 @@ function Plan() {
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState('');
   const [courseCache, setCourseCache] = useState({});
+  const [cachedItems, setCachedItems] = useState({});
   const [dragOverTarget, setDragOverTarget] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
@@ -211,7 +212,13 @@ function Plan() {
             const cData = await cRes.json();
             const newCache = {};
             for (const c of (cData?.courses || [])) {
-              newCache[c.id] = { subjectCode: c.subject_code, number: c.number, title: c.title, units: c.units };
+              newCache[c.id] = { 
+                subjectCode: c.subject_code, 
+                number: c.number, 
+                title: c.title, 
+                units: c.units,
+                requisites_parsed: c.requisites_parsed
+              };
             }
             setCourseCache(prev => ({ ...prev, ...newCache }));
           }
@@ -221,11 +228,81 @@ function Plan() {
       }
 
       setPlanItems(items);
+      setCachedItems(prev => ({ ...prev, [planId]: items }));
     } catch (e) {
       setItemsError('Failed to load plan items.');
     } finally {
       setItemsLoading(false);
     }
+  };
+
+  const TERM_CHRONO = { FALL: 1, WINTER: 2, SPRING: 3, SUMMER_A: 4, SUMMER_C: 5 };
+
+  const validatePrerequisites = (courseData, newYear, newTerm, planItemsData, cache, subjList) => {
+    if (!courseData.requisites_parsed || !courseData.requisites_parsed.requisites) return { satisfied: true };
+    
+    const targetScore = newYear * 10 + TERM_CHRONO[newTerm];
+    const takenCourses = new Set();
+    
+    planItemsData.forEach(item => {
+      if (courseData._planItemId && item.id === courseData._planItemId) return;
+      
+      const itemScore = item.year_index * 10 + TERM_CHRONO[item.term];
+      if (itemScore < targetScore) {
+        const c = cache[item.course_id];
+        if (c) {
+          const code = (c.subjectCode || '').toLowerCase().trim();
+          const num = (c.number || '').toLowerCase().trim();
+          takenCourses.add(`${code} ${num}`);
+          
+          const sObj = subjList.find(s => s.code.toLowerCase() === code);
+          if (sObj) {
+            takenCourses.add(`${sObj.name.toLowerCase().trim()} ${num}`);
+          }
+        }
+      }
+    });
+
+    for (const req of courseData.requisites_parsed.requisites) {
+      if (req.type === 'enforced') {
+        for (const group of (req.groups || [])) {
+          let groupSatisfied = false;
+          let groupCourses = group.courses || [];
+          
+          if (group.operator === 'OR') {
+            for (const pc of groupCourses) {
+              const pSubj = (pc.subject || '').trim().toLowerCase();
+              const pNum = (pc.number || '').trim().toLowerCase();
+              if (takenCourses.has(`${pSubj} ${pNum}`)) {
+                groupSatisfied = true;
+                break;
+              }
+            }
+            if (!groupSatisfied) {
+              return { satisfied: false, reason: `Requires one of: ` + groupCourses.map(c => `${c.subject} ${c.number}`).join(' OR ') };
+            }
+          } else if (group.operator === 'AND') {
+            for (const pc of groupCourses) {
+              const pSubj = (pc.subject || '').trim().toLowerCase();
+              const pNum = (pc.number || '').trim().toLowerCase();
+              if (!takenCourses.has(`${pSubj} ${pNum}`)) {
+                return { satisfied: false, reason: `Requires: ${pc.subject} ${pc.number}` };
+              }
+            }
+          } else {
+            if (groupCourses.length > 0) {
+              const pc = groupCourses[0];
+              const pSubj = (pc.subject || '').trim().toLowerCase();
+              const pNum = (pc.number || '').trim().toLowerCase();
+              if (!takenCourses.has(`${pSubj} ${pNum}`)) {
+                return { satisfied: false, reason: `Requires: ${pc.subject} ${pc.number}` };
+              }
+            }
+          }
+        }
+      }
+    }
+    return { satisfied: true };
   };
 
   const handleDrop = async (e, yearNum, term) => {
@@ -237,6 +314,12 @@ function Plan() {
 
     let courseData;
     try { courseData = JSON.parse(raw); } catch { return; }
+
+    const prereqCheck = validatePrerequisites(courseData, yearNum, term, planItems, courseCache, subjects);
+    if (!prereqCheck.satisfied) {
+      alert(`Cannot place course here.\n\n${prereqCheck.reason}\n\nPlease place the enforced requisite(s) in a previous quarter.`);
+      return;
+    }
 
     const userId = user?.id;
     const planId = selectedPlan?.id;
@@ -407,30 +490,74 @@ function Plan() {
     if (createPlanLoading) return;
     const userId = user?.id;
     if (!userId) { setCreatePlanError('Missing user id. Please log in again.'); return; }
+    
+    const tempPlanId = `temp-${Date.now()}`;
+    const startYr = new Date().getFullYear();
+    const tempPlan = {
+      id: tempPlanId,
+      name: 'Schedule 1',
+      start_year: startYr,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      _optimistic: true
+    };
+    
+    setPlans(prev => [tempPlan, ...prev]);
+    setSelectedPlan(tempPlan);
+    setPlanItems([]);
+    setItemsLoading(true);
+    setView('editor');
+
     setCreatePlanLoading(true);
     setCreatePlanError('');
     try {
       const res = await fetch('http://localhost:8000/api/plans/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
-        body: JSON.stringify({ name: 'Schedule 1', start_year: new Date().getFullYear() }),
+        body: JSON.stringify({ name: 'Schedule 1', start_year: startYr }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text().catch(() => '')}`);
       const data = await res.json();
       const createdPlan = data?.plan ?? data;
-      setPlans(prev => [createdPlan, ...prev]);
+      setPlans(prev => prev.map(p => p.id === tempPlanId ? createdPlan : p));
       setSelectedPlan(createdPlan);
-      setPlanItems([]);
-      setView('editor');
-    } catch (err) { console.error(err); setCreatePlanError('Failed to create plan.'); }
-    finally { setCreatePlanLoading(false); }
+      await loadPlanItems(createdPlan.id);
+    } catch (err) {
+      console.error(err);
+      setCreatePlanError('Failed to create plan.');
+      setPlans(prev => prev.filter(p => p.id !== tempPlanId));
+      setView('all-plans');
+      setSelectedPlan(null);
+    } finally { 
+      setCreatePlanLoading(false);
+      setItemsLoading(false);
+    }
+  };
+
+  const handleDeletePlan = async (planId) => {
+    if (!window.confirm("Are you sure you want to delete this plan?")) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/plans/${planId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': user?.id },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setPlans(prev => prev.filter(p => p.id !== planId));
+      if (selectedPlan?.id === planId) {
+        setSelectedPlan(null);
+        setView('all-plans');
+      }
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Failed to delete plan.');
+    }
   };
 
   // --- Navigation handlers ---
 
   const handleOpenPlan = (plan) => {
     setSelectedPlan(plan);
-    setPlanItems([]);
+    setPlanItems(cachedItems[plan.id] || []);
     setView('editor');
     loadPlanItems(plan.id);
   };
@@ -459,6 +586,7 @@ function Plan() {
           createPlanError={createPlanError}
           onCreateNew={handleCreateNew}
           onOpenPlan={handleOpenPlan}
+          onDeletePlan={handleDeletePlan}
         />
       </div>
     );
@@ -573,7 +701,12 @@ function Plan() {
             </button>
           </div>
 
-          <DegreeProgress />
+          <DegreeProgress 
+            planItems={planItems}
+            courseCache={courseCache}
+            userMajor={user?.major}
+            subjects={subjects}
+          />
 
           <ScheduleGrid
             itemsByYearTerm={itemsByYearTerm}

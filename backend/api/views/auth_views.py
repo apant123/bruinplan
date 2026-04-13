@@ -17,6 +17,9 @@ import tempfile
 from dars_parser.extract_dars_text import extract_text_pdfminer
 from dars_parser.get_taken_courses import extract_taken_courses
 from dars_parser.get_needed_courses_from_audit import extract_requirements
+from dars_parser.extract_gpa import extract_gpa_from_dars
+from dars_parser.extract_units import extract_total_units_from_dars
+from dars_parser.extract_program import extract_major, extract_minor, extract_expected_graduation
 
 
 #loading in .env file
@@ -92,6 +95,12 @@ def createUser(request):
         taken_list = []
         requirements = []
         dars_connected = False
+        gpa = None
+        total_units = None
+        d_major = None
+        d_minor = None
+        d_year = None
+        d_quarter = None
         
         if 'file' in request.FILES:
             uploaded_file = request.FILES['file']
@@ -117,6 +126,11 @@ def createUser(request):
                 
                 taken_list = [{'quarter': q, 'course': c} for q, c in taken_courses_data]
                 dars_connected = True
+                gpa = extract_gpa_from_dars(text)
+                total_units = extract_total_units_from_dars(text)
+                d_major = extract_major(text)
+                d_minor = extract_minor(text)
+                d_year, d_quarter = extract_expected_graduation(text)
 
             except Exception as e:
                 print(f"DARS parsing failed: {e}")
@@ -149,6 +163,17 @@ def createUser(request):
             return Response({"error": "Need email and password to sign up"}, status=400)
 
         email, password = email.strip(), password.strip()
+        
+        # Override these if DARS was provided
+        request_raw_major = request.data.get('major', '')
+        request_raw_minor = request.data.get('minor', '')
+        request_raw_quarter = request.data.get('expected_grad', '')
+        request_raw_year = request.data.get('year', None)
+        
+        request_major = d_major if d_major else request_raw_major
+        request_minor = d_minor if d_minor else request_raw_minor
+        request_grad_quarter = d_quarter if d_quarter else request_raw_quarter
+        request_grad_year = d_year if d_year else request_raw_year
 
         # --- Admin client for creating users ---
         admin: Client = create_client(supabase_url, service_role_key)
@@ -170,11 +195,16 @@ def createUser(request):
 
         user_id = res.user.id
 
-        # --- Create local profile row (let DB default created_at handle it) ---
         new_user = UserProfile(
             id=user_id,
             classes_taken=taken_list,
-            classes_needed=requirements
+            classes_needed=requirements,
+            major=request_major,
+            minor=request_minor,
+            expected_grad=request_grad_quarter,
+            year=request_grad_year,
+            gpa=gpa,
+            total_units=total_units
         )
 
         try:
@@ -195,7 +225,12 @@ def createUser(request):
         for k, v in list(cleaned.items()):
             if isinstance(v, str) and v.strip().lower() in ("none", "null", ""):
                 cleaned[k] = None
-        
+
+        cleaned['major'] = request_major
+        cleaned['minor'] = request_minor
+        cleaned['expected_grad'] = request_grad_quarter
+        cleaned['year'] = request_grad_year
+
         # Explicit type conversion for FormData (all strings)
         # We need to handle year, completed_lower_div_units, completed_upper_div_units, gpa
         numeric_fields = {
@@ -244,9 +279,10 @@ def createUser(request):
                 "name": getattr(new_user, "name", None),
                 "major": getattr(new_user, "major", None),
                 "minor": getattr(new_user, "minor", None),
-                "graduation_year": getattr(new_user, "graduation_year", None),
-                "graduation_quarter": getattr(new_user, "graduation_quarter", None),
+                "graduation_year": getattr(new_user, "year", None),
+                "graduation_quarter": getattr(new_user, "expected_grad", None),
                 "units": getattr(new_user, "units", None),
+                "total_units": getattr(new_user, "total_units", None),
                 "gpa": getattr(new_user, "gpa", None),
                 "dars_connected": dars_connected,
                 "created_at": new_user.created_at,
@@ -342,6 +378,7 @@ def loginUser(request):
                 "graduation_year": getattr(user_profile, "graduation_year", None),
                 "graduation_quarter": getattr(user_profile, "graduation_quarter", None),
                 "units": getattr(user_profile, "units", None),
+                "total_units": getattr(user_profile, "total_units", None),
                 "gpa": getattr(user_profile, "gpa", None),
                 "dars_connected": bool(user_profile.classes_taken),
                 "created_at": user_profile.created_at,
