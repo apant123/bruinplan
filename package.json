@@ -7,8 +7,11 @@
     "backend"
   ],
   "scripts": {
+    "install:frontend": "npm install --prefix frontend",
+    "install:backend": "backend/venv/bin/pip install -r backend/requirements.txt",
+    "install:all": "npm run install:frontend && npm run install:backend",
     "start:frontend": "npm start --workspace=frontend",
-    "start:backend": "npm start --workspace=backend",
+    "start:backend": "backend/venv/bin/python backend/manage.py runserver",
     "build:frontend": "npm run build --workspace=frontend",
     "test:frontend": "npm test --workspace=frontend"
   }
