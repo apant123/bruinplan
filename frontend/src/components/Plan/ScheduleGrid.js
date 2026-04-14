@@ -14,6 +14,7 @@ function ScheduleGrid({
   onSetDragOverTarget,
   onDrop,
   onDeleteItem,
+  onCourseDoubleClick,
   itemsLoading,
   itemsError,
 }) {
@@ -81,6 +82,12 @@ function ScheduleGrid({
                             };
                             e.dataTransfer.setData('application/json', JSON.stringify(dragData));
                             e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            if (cached && onCourseDoubleClick) {
+                              onCourseDoubleClick(cached);
+                            }
                           }}
                         >
                           <div className="course-name">

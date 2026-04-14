@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import './Plan.css';
@@ -7,6 +7,8 @@ import PlansList from '../components/Plan/PlansList';
 import CourseSidebar from '../components/Plan/CourseSidebar';
 import ScheduleGrid from '../components/Plan/ScheduleGrid';
 import DegreeProgress from '../components/Plan/DegreeProgress';
+import PrereqWarningModal from '../components/Plan/PrereqWarningModal';
+import CourseDetailModal from '../components/Plan/CourseDetailModal';
 
 const TERMS = ['FALL', 'WINTER', 'SPRING', 'SUMMER_A', 'SUMMER_C'];
 const YEAR_COUNT = 4;
@@ -48,6 +50,12 @@ function Plan() {
   const [plansError, setPlansError] = useState('');
   const [createPlanLoading, setCreatePlanLoading] = useState(false);
   const [createPlanError, setCreatePlanError] = useState('');
+
+  // Prereq warning modal state
+  const [prereqModal, setPrereqModal] = useState({ open: false, reason: '', pendingDrop: null });
+
+  // Course detail modal state
+  const [detailModal, setDetailModal] = useState({ open: false, course: null });
 
   // --- Data loading effects ---
 
@@ -216,7 +224,9 @@ function Plan() {
                 subjectCode: c.subject_code, 
                 number: c.number, 
                 title: c.title, 
+                description: c.description,
                 units: c.units,
+                requisites_text: c.requisites_text,
                 requisites_parsed: c.requisites_parsed
               };
             }
@@ -305,21 +315,8 @@ function Plan() {
     return { satisfied: true };
   };
 
-  const handleDrop = async (e, yearNum, term) => {
-    e.preventDefault();
-    setDragOverTarget(null);
-
-    const raw = e.dataTransfer.getData('application/json');
-    if (!raw) return;
-
-    let courseData;
-    try { courseData = JSON.parse(raw); } catch { return; }
-
-    const prereqCheck = validatePrerequisites(courseData, yearNum, term, planItems, courseCache, subjects);
-    if (!prereqCheck.satisfied) {
-      alert(`Cannot place course here.\n\n${prereqCheck.reason}\n\nPlease place the enforced requisite(s) in a previous quarter.`);
-      return;
-    }
+  // Executes the actual drop logic (called directly or after modal confirm)
+  const executeDrop = useCallback(async (courseData, yearNum, term) => {
 
     const userId = user?.id;
     const planId = selectedPlan?.id;
@@ -442,7 +439,37 @@ function Plan() {
       //   return copy;
       // });
     }
+  }, [user?.id, selectedPlan?.id, planItems, itemsByYearTerm, planCourseIds, courseCache, selectedSubject?.code]);
+
+  const handleDrop = (e, yearNum, term) => {
+    e.preventDefault();
+    setDragOverTarget(null);
+
+    const raw = e.dataTransfer.getData('application/json');
+    if (!raw) return;
+
+    let courseData;
+    try { courseData = JSON.parse(raw); } catch { return; }
+
+    const prereqCheck = validatePrerequisites(courseData, yearNum, term, planItems, courseCache, subjects);
+    if (!prereqCheck.satisfied) {
+      // Show custom modal instead of native confirm
+      setPrereqModal({ open: true, reason: prereqCheck.reason, pendingDrop: { courseData, yearNum, term } });
+      return;
+    }
+
+    executeDrop(courseData, yearNum, term);
   };
+
+  const handlePrereqConfirm = () => {
+    const { courseData, yearNum, term } = prereqModal.pendingDrop || {};
+    setPrereqModal({ open: false, reason: '', pendingDrop: null });
+    if (courseData) executeDrop(courseData, yearNum, term);
+  };
+
+  const handlePrereqCancel = useCallback(() => {
+    setPrereqModal({ open: false, reason: '', pendingDrop: null });
+  }, []);
 
   const handleDeleteItem = async (itemId) => {
     const userId = user?.id;
@@ -717,11 +744,25 @@ function Plan() {
             onSetDragOverTarget={setDragOverTarget}
             onDrop={handleDrop}
             onDeleteItem={handleDeleteItem}
+            onCourseDoubleClick={(course) => setDetailModal({ open: true, course })}
             itemsLoading={itemsLoading}
             itemsError={itemsError}
           />
         </main>
       </div>
+
+      <PrereqWarningModal
+        isOpen={prereqModal.open}
+        reason={prereqModal.reason}
+        onConfirm={handlePrereqConfirm}
+        onCancel={handlePrereqCancel}
+      />
+
+      <CourseDetailModal
+        isOpen={detailModal.open}
+        course={detailModal.course}
+        onClose={() => setDetailModal({ open: false, course: null })}
+      />
     </div>
   );
 }

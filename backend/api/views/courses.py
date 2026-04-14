@@ -48,7 +48,9 @@ def courses_by_ids(request):
             "subject_code": subjects.get(c.subject_area_id, ""),
             "number": c.number,
             "title": c.title,
+            "description": c.description,
             "units": c.units,
+            "requisites_text": c.requisites_text,
             "requisites_parsed": c.requisites_parsed,
         })
     return Response({"courses": data})
