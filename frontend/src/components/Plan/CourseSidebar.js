@@ -19,6 +19,7 @@ function CourseSidebar({
   coursesError,
   filteredCourses,
   courseLabel,
+  onCourseDoubleClick,
 }) {
   return (
     <aside className="plan-sidebar">
@@ -135,6 +136,12 @@ function CourseSidebar({
               const dragData = { ...c, subjectCode: selectedSubject?.code || '' };
               e.dataTransfer.setData('application/json', JSON.stringify(dragData));
               e.dataTransfer.setData('text/plain', courseLabel(c));
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (onCourseDoubleClick) {
+                onCourseDoubleClick({ ...c, subjectCode: selectedSubject?.code || '' });
+              }
             }}
           >
             <div className="course-header">

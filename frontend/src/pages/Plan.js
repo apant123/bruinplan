@@ -30,11 +30,7 @@ function Plan() {
   const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [subjectsError, setSubjectsError] = useState('');
   const [subjectQuery, setSubjectQuery] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState({
-    id: 230,
-    code: 'COM SCI',
-    name: 'Computer Science',
-  });
+  const [selectedSubject, setSelectedSubject] = useState(null);
   const [courses, setCourses] = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesError, setCoursesError] = useState('');
@@ -135,10 +131,9 @@ function Plan() {
 
   const filteredSubjects = useMemo(() => {
     const q = subjectQuery.trim().toLowerCase();
-    if (!q) return subjects.slice(0, 50);
+    if (!q) return subjects;
     return subjects
-      .filter((s) => (s.code || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q))
-      .slice(0, 50);
+      .filter((s) => (s.code || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q));
   }, [subjects, subjectQuery]);
 
   const courseLabel = (c) => `${selectedSubject?.code ?? ''} ${c?.number ?? ''}`.trim();
@@ -641,6 +636,7 @@ function Plan() {
           coursesError={coursesError}
           filteredCourses={filteredCourses}
           courseLabel={courseLabel}
+          onCourseDoubleClick={(course) => setDetailModal({ open: true, course })}
         />
 
         <main className="plan-main">
