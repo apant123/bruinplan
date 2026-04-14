@@ -92,7 +92,7 @@
 
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
 }
 
@@ -114,11 +114,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .plan-card-header h3 {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #247ad6;
   margin: 0;
@@ -145,25 +145,34 @@
 }
 
 .plan-card-meta {
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .plan-card-courses {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
 
 .course-mini {
-  padding: 12px 16px;
-  background: #f8f8f8;
+  padding: 10px 12px;
+  background: #f5f6f8;
   border-radius: 8px;
   border-left: 4px solid;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.course-mini-placeholder {
+  border-left-color: #e0e0e0;
+  background: #f5f6f8;
+  min-height: 38px;
 }
 
 .course-mini.color-orange {

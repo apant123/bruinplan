@@ -1,0 +1,143 @@
+/* Overlay */
+.cp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: cpFadeIn 0.2s ease;
+}
+
+@keyframes cpFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Modal */
+.cp-modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 36px 32px 28px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0,0,0,0.04);
+  animation: cpSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+@keyframes cpSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Icon */
+.cp-icon-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.cp-icon-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #eef6ff;
+  border: 2px solid #d4e6f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Title & subtitle */
+.cp-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 6px;
+  font-family: 'Inter', sans-serif;
+}
+
+.cp-sub {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Input */
+.cp-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  color: #1a1a1a;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.cp-input:focus {
+  border-color: #247ad6;
+  box-shadow: 0 0 0 3px rgba(36, 122, 214, 0.12);
+}
+
+.cp-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Actions */
+.cp-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cp-cancel-btn,
+.cp-confirm-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+  border: none;
+}
+
+.cp-cancel-btn {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.cp-cancel-btn:hover {
+  background: #e5e7eb;
+}
+
+.cp-confirm-btn {
+  background: #247ad6;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(36, 122, 214, 0.3);
+}
+
+.cp-confirm-btn:hover:not(:disabled) {
+  background: #1d6bb8;
+  box-shadow: 0 4px 12px rgba(36, 122, 214, 0.4);
+  transform: translateY(-1px);
+}
+
+.cp-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

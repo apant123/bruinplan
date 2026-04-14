@@ -9,6 +9,7 @@ import ScheduleGrid from '../components/Plan/ScheduleGrid';
 import DegreeProgress from '../components/Plan/DegreeProgress';
 import PrereqWarningModal from '../components/Plan/PrereqWarningModal';
 import CourseDetailModal from '../components/Plan/CourseDetailModal';
+import CreatePlanModal from '../components/Plan/CreatePlanModal';
 
 const TERMS = ['FALL', 'WINTER', 'SPRING', 'SUMMER_A', 'SUMMER_C'];
 const YEAR_COUNT = 4;
@@ -171,6 +172,8 @@ function Plan() {
 
   // --- API functions ---
 
+  const [planPreviews, setPlanPreviews] = useState({}); // { planId: [{ course_id, subjectCode, number, units }] }
+
   const loadPlans = async () => {
     const userId = user?.id;
     if (!userId) return;
@@ -182,7 +185,52 @@ function Plan() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setPlans(Array.isArray(data?.plans) ? data.plans : []);
+      const plansList = Array.isArray(data?.plans) ? data.plans : [];
+      setPlans(plansList);
+
+      // Load item previews for each plan
+      const previews = {};
+      const allCourseIds = new Set();
+
+      await Promise.all(plansList.map(async (plan) => {
+        try {
+          const iRes = await fetch(`http://localhost:8000/api/plans/${plan.id}/items/`, {
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+          });
+          if (iRes.ok) {
+            const iData = await iRes.json();
+            const items = Array.isArray(iData?.items) ? iData.items : [];
+            previews[plan.id] = items;
+            items.forEach(it => allCourseIds.add(it.course_id));
+          }
+        } catch {}
+      }));
+
+      setPlanPreviews(previews);
+
+      // Batch-fetch course details for all course IDs we don't have cached
+      const missing = [...allCourseIds].filter(id => !courseCache[id]);
+      if (missing.length > 0) {
+        try {
+          const cRes = await fetch(`http://localhost:8000/api/courses/by-ids/?ids=${missing.join(',')}`);
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            const newCache = {};
+            for (const c of (cData?.courses || [])) {
+              newCache[c.id] = {
+                subjectCode: c.subject_code,
+                number: c.number,
+                title: c.title,
+                description: c.description,
+                units: c.units,
+                requisites_text: c.requisites_text,
+                requisites_parsed: c.requisites_parsed
+              };
+            }
+            setCourseCache(prev => ({ ...prev, ...newCache }));
+          }
+        } catch {}
+      }
     } catch (e) {
       setPlansError('Failed to load plans.');
     } finally {
@@ -508,7 +556,14 @@ function Plan() {
     }
   };
 
-  const handleCreateNew = async () => {
+  const handleCreateNew = () => {
+    setShowCreateModal(true);
+  };
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const handleCreateConfirm = async (planName) => {
+    setShowCreateModal(false);
     if (createPlanLoading) return;
     const userId = user?.id;
     if (!userId) { setCreatePlanError('Missing user id. Please log in again.'); return; }
@@ -517,7 +572,7 @@ function Plan() {
     const startYr = new Date().getFullYear();
     const tempPlan = {
       id: tempPlanId,
-      name: 'Schedule 1',
+      name: planName,
       start_year: startYr,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -536,7 +591,7 @@ function Plan() {
       const res = await fetch('http://localhost:8000/api/plans/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
-        body: JSON.stringify({ name: 'Schedule 1', start_year: startYr }),
+        body: JSON.stringify({ name: planName, start_year: startYr }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text().catch(() => '')}`);
       const data = await res.json();
@@ -609,6 +664,13 @@ function Plan() {
           onCreateNew={handleCreateNew}
           onOpenPlan={handleOpenPlan}
           onDeletePlan={handleDeletePlan}
+          planPreviews={planPreviews}
+          courseCache={courseCache}
+        />
+        <CreatePlanModal
+          isOpen={showCreateModal}
+          onConfirm={handleCreateConfirm}
+          onCancel={() => setShowCreateModal(false)}
         />
       </div>
     );
