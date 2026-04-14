@@ -81,7 +81,6 @@ def plans_view(request):
     user_profile = UserProfile.objects.filter(id=plan_user_id).first()
     if user_profile and user_profile.classes_taken and isinstance(user_profile.classes_taken, list):
         parsed_classes = []
-        min_acad_year = 9999
         for cls_obj in user_profile.classes_taken:
             course_name = cls_obj.get("course")
             quarter = cls_obj.get("quarter")
@@ -99,16 +98,27 @@ def plans_view(request):
             else:
                 acad_year = year_val
                 
-            if acad_year < min_acad_year:
-                min_acad_year = acad_year
-                
             parsed_classes.append({
                 "course_name": course_name,
                 "term_code": term_code,
                 "acad_year": acad_year
             })
+
+        # Determine start year from the earliest Fall quarter
+        # (when the student actually started at UCLA).
+        # Pre-UCLA transfer/AP credits are ignored.
+        fall_years = [c["acad_year"] for c in parsed_classes if c["term_code"] == "FA"]
+        if fall_years:
+            min_acad_year = min(fall_years)
+        elif parsed_classes:
+            min_acad_year = min(c["acad_year"] for c in parsed_classes)
+        else:
+            min_acad_year = None
+
+        # Filter out courses from before the student started at UCLA
+        parsed_classes = [c for c in parsed_classes if c["acad_year"] >= min_acad_year] if min_acad_year else []
             
-        if parsed_classes:
+        if parsed_classes and min_acad_year:
             p.start_year = min_acad_year
             p.save()
             
@@ -121,11 +131,17 @@ def plans_view(request):
             
             from collections import defaultdict
             positions = defaultdict(int)
+
+            MAX_YEAR_INDEX = 5  # DB check constraint limits year_index to 1-5
             
             for p_cls in parsed_classes:
                 y_index = p_cls["acad_year"] - min_acad_year + 1
                 t = term_map.get(p_cls["term_code"])
                 if not t:
+                    continue
+
+                # Skip items that would violate the DB check constraint
+                if y_index < 1 or y_index > MAX_YEAR_INDEX:
                     continue
                     
                 c_parts = p_cls["course_name"].rsplit(" ", 1)
@@ -146,14 +162,17 @@ def plans_view(request):
                 pos = positions[pos_key]
                 positions[pos_key] += 1
                 
-                PlanItem.objects.create(
-                    plan_id=p.id,
-                    year_index=y_index,
-                    term=t,
-                    course_id=course.id,
-                    status=PlanItem.Status.COMPLETED,
-                    position=pos
-                )
+                try:
+                    PlanItem.objects.create(
+                        plan_id=p.id,
+                        year_index=y_index,
+                        term=t,
+                        course_id=course.id,
+                        status=PlanItem.Status.COMPLETED,
+                        position=pos
+                    )
+                except IntegrityError:
+                    continue
 
     return Response(
         {

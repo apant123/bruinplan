@@ -39,7 +39,9 @@ DEPARTMENT_CODES = [
 
 def extract_text_pdfminer(pdf_path: str) -> str:
     """Extract text from a PDF file using pdfminer.six."""
-    return extract_text(pdf_path)
+    text = extract_text(pdf_path)
+    save_text_to_file(text, "extracted.txt")
+    return text
 
 def save_text_to_file(text: str, output_path: str):
     """Save text to a file."""

@@ -68,7 +68,8 @@ def get_programs(dars_text):
 
     # First attempt: Columar parsing which relies on "Description" header
     # Very common in PDFMiner output
-    desc_match = re.search(r'Description\s+(.*?)(?:SPECIALIZATION|$)', normal_text)
+    # Stop at SPECIALIZATION, '-->', or 'Audit Results' to avoid capturing the entire document
+    desc_match = re.search(r'Description\s+(.*?)(?:SPECIALIZATION|-->|Audit Results)', normal_text, re.IGNORECASE)
     if desc_match:
         desc_block = desc_match.group(1).strip()
         # Find combination of Major and Minor. Usually major ends with B.S or B.A
