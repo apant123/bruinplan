@@ -8,11 +8,15 @@
   ],
   "scripts": {
     "install:frontend": "npm install --prefix frontend",
-    "install:backend": "backend/venv/bin/pip install -r backend/requirements.txt",
+    "install:backend": "venv/bin/pip install -r backend/requirements.txt",
     "install:all": "npm run install:frontend && npm run install:backend",
     "start:frontend": "npm start --workspace=frontend",
-    "start:backend": "backend/venv/bin/python backend/manage.py runserver",
+    "start:backend": "venv/bin/python backend/manage.py runserver",
+    "dev": "concurrently --kill-others \"npm run start:backend\" \"npm run start:frontend\"",
     "build:frontend": "npm run build --workspace=frontend",
     "test:frontend": "npm test --workspace=frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

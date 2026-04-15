@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
@@ -6,8 +6,68 @@ import './Profile.css';
 
 function Profile() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateProfile } = useAuth();
   
+  const [isEditing, setIsEditing] = useState(false);
+  const [editMajor, setEditMajor] = useState(user?.major || '');
+  const [editMinor, setEditMinor] = useState(user?.minor || '');
+  const [subjects, setSubjects] = useState([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000/api';
+        const res = await fetch(`${API_BASE}/subjects/`);
+        const data = await res.json();
+        setSubjects(data.subjects || []);
+      } catch (e) {
+        console.error("Failed to fetch subjects", e);
+      }
+    };
+    fetchSubjects();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setEditMajor(user.major || '');
+      setEditMinor(user.minor || '');
+    }
+  }, [user]);
+
+  const handleEditToggle = async () => {
+    if (isEditing) {
+      try {
+        const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000/api';
+        
+        const res = await fetch(`${API_BASE}/user/update/`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": accessToken ? `Bearer ${accessToken}` : '',
+            "X-User-Id": user?.id || '',
+          },
+          body: JSON.stringify({
+            major: editMajor,
+            minor: editMinor === 'None' ? '' : editMinor
+          })
+        });
+        
+        if (res.ok) {
+          updateProfile({ major: editMajor, minor: editMinor === 'None' ? '' : editMinor });
+          setIsEditing(false);
+        } else {
+          console.error("Failed to update profile");
+          alert("Failed to update profile. Please try again.");
+        }
+      } catch (e) {
+         console.error("Error updating profile:", e);
+         alert("Error updating profile. Please try again.");
+      }
+    } else {
+      setIsEditing(true);
+    }
+  };
 
   const getInitials = () => {
     if (!user) return '';
@@ -63,12 +123,29 @@ function Profile() {
             <div className="academic-info-card">
               <div className="card-header">
                 <h2>Academic Information</h2>
-                <button className="edit-button" onClick={() => alert('Edit functionality coming soon!')}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M11.334 2.00004C11.5091 1.82494 11.7169 1.68605 11.9457 1.59129C12.1745 1.49653 12.4197 1.44775 12.6673 1.44775C12.9149 1.44775 13.1601 1.49653 13.3889 1.59129C13.6177 1.68605 13.8256 1.82494 14.0007 2.00004C14.1758 2.17513 14.3147 2.383 14.4094 2.61178C14.5042 2.84055 14.553 3.08575 14.553 3.33337C14.553 3.58099 14.5042 3.82619 14.4094 4.05497C14.3147 4.28374 14.1758 4.49161 14.0007 4.66671L5.00065 13.6667L1.33398 14.6667L2.33398 11L11.334 2.00004Z" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Edit
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="edit-button" onClick={handleEditToggle}>
+                    {isEditing ? (
+                      'Save'
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M11.334 2.00004C11.5091 1.82494 11.7169 1.68605 11.9457 1.59129C12.1745 1.49653 12.4197 1.44775 12.6673 1.44775C12.9149 1.44775 13.1601 1.49653 13.3889 1.59129C13.6177 1.68605 13.8256 1.82494 14.0007 2.00004C14.1758 2.17513 14.3147 2.383 14.4094 2.61178C14.5042 2.84055 14.553 3.08575 14.553 3.33337C14.553 3.58099 14.5042 3.82619 14.4094 4.05497C14.3147 4.28374 14.1758 4.49161 14.0007 4.66671L5.00065 13.6667L1.33398 14.6667L2.33398 11L11.334 2.00004Z" stroke="#247ad6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Edit
+                      </>
+                    )}
+                  </button>
+                  {isEditing && (
+                    <button className="edit-button" style={{ borderColor: '#666', color: '#666' }} onClick={() => {
+                      setIsEditing(false);
+                      setEditMajor(user?.major || '');
+                      setEditMinor(user?.minor || '');
+                    }}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="info-section">
@@ -81,7 +158,22 @@ function Profile() {
                       </svg>
                       MAJOR
                     </div>
-                    <div className="info-value">{user.major || 'Not set'}</div>
+                    <div className="info-value">
+                      {isEditing ? (
+                        <select 
+                          className="profile-select" 
+                          value={editMajor} 
+                          onChange={(e) => setEditMajor(e.target.value)}
+                        >
+                          <option value="">Select Major</option>
+                          {subjects.map((sub) => (
+                            <option key={sub.id} value={sub.name}>{sub.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        user.major || 'Not set'
+                      )}
+                    </div>
                   </div>
 
                   <div className="info-item">
@@ -92,7 +184,22 @@ function Profile() {
                       </svg>
                       MINOR
                     </div>
-                    <div className="info-value">{user.minor || 'None'}</div>
+                    <div className="info-value">
+                      {isEditing ? (
+                        <select 
+                          className="profile-select" 
+                          value={editMinor} 
+                          onChange={(e) => setEditMinor(e.target.value)}
+                        >
+                          <option value="None">None</option>
+                          {subjects.map((sub) => (
+                            <option key={sub.id} value={sub.name}>{sub.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        user.minor || 'None'
+                      )}
+                    </div>
                   </div>
                 </div>
 

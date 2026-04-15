@@ -7,11 +7,21 @@ from rest_framework.response import Response
 from api.models.users import UserProfile  # adjust import if your path differs
 
 
+import uuid
+
 def _get_user_uuid_from_supabase_jwt(request):
     """
     Extract and verify Supabase access token from Authorization: Bearer <token>.
-    Returns user UUID (sub).
+    Returns user UUID (sub). Fallback to X-User-Id for testing.
     """
+    # 1. Fallback / Session auth check
+    x_user_id = request.headers.get("X-User-Id")
+    if x_user_id:
+        try:
+            return uuid.UUID(x_user_id), None
+        except ValueError:
+            return None, Response({"error": "invalid X-User-Id format"}, status=401)
+
     jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
     auth_header = request.headers.get("Authorization")
 
@@ -33,7 +43,7 @@ def _get_user_uuid_from_supabase_jwt(request):
 
 def _serialize_profile(profile: UserProfile):
     return {
-        "uuid": str(profile.uuid),
+        "id": str(profile.id),
         "name": profile.name,
         "major": profile.major,
         "minor": profile.minor,
@@ -55,7 +65,7 @@ def get_profile(request):
 
     # Create profile on first login (so you don't need a createUser endpoint)
     profile, _created = UserProfile.objects.get_or_create(
-        uuid=user_uuid,
+        id=user_uuid,
         defaults={"created_at": timezone.now()}
     )
 
@@ -69,7 +79,7 @@ def update_profile(request):
         return err
 
     profile, _created = UserProfile.objects.get_or_create(
-        uuid=user_uuid,
+        id=user_uuid,
         defaults={"created_at": timezone.now()}
     )
 
