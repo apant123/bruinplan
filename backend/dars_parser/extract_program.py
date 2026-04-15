@@ -72,11 +72,22 @@ def get_programs(dars_text):
     desc_match = re.search(r'Description\s+(.*?)(?:SPECIALIZATION|-->|Audit Results)', normal_text, re.IGNORECASE)
     if desc_match:
         desc_block = desc_match.group(1).strip()
+        # Strip columnar prefix garbage: code types (MAJOR1, MINOR1), years (2024),
+        # quarter names (FALL), and program codes (LS0725, MM29) that precede the
+        # actual description text in the flattened columnar layout.
+        desc_block = re.sub(
+            r'^(?:[A-Z-]*\d+[A-Z0-9-]*\s+|(?:FALL|WINTER|SPRING|SUMMER)\s+)+',
+            '', desc_block
+        )
         # Find combination of Major and Minor. Usually major ends with B.S or B.A
         split_match = re.search(r'(.*?(?:B\.S\.|B\.A\.|B\.S|B\.A|B\.F\.A|B\.F\.A\.|B\.M\.|B\.M))\s*(.*)', desc_block)
         if split_match:
             raw_major = split_match.group(1)
             raw_minor = split_match.group(2)
+            # Strip trailing "MAJOR" or "MINOR" label that follows the degree tag (e.g. "B.S. MAJOR")
+            raw_major = re.sub(r'\s+(?:MAJOR|MINOR)\s*$', '', raw_major, flags=re.IGNORECASE)
+            # Strip leading "MAJOR" or "MINOR" label that bleeds into the minor field (e.g. "MAJOR DIGITAL HUMANITIES MINOR")
+            raw_minor = re.sub(r'^(?:MAJOR|MINOR)\s+', '', raw_minor, flags=re.IGNORECASE)
             major = clean_program_name(raw_major)
             if raw_minor:
                 minor = clean_program_name(raw_minor)

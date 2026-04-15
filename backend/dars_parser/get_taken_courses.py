@@ -35,6 +35,59 @@ DEPARTMENT_CODES = [
     "WL ARTS", "YIDDSH"
 ]
 
+
+def _normalize_course_line(line: str) -> str:
+    """Fix common PDF/OCR artifacts in quarter and department fragments."""
+    s = line.strip()
+    if not s:
+        return s
+    # Summer sometimes OCR'd as $U24
+    m = re.match(r"^[\$]U(\d{2})$", s, re.IGNORECASE)
+    if m:
+        return f"SU{m.group(1).upper()}"
+    # FA23_ENGCOMP -> FA23 ENGCOMP
+    s = re.sub(r"^(FA|WI|SP|SU)(\d{2})_", r"\1\2 ", s)
+    return s.strip()
+
+
+def _remainder_looks_like_catalog_number(remainder: str) -> bool:
+    """Reject OCR title lines and headers mistaken for catalog numbers (e.g. SUMMER 2024)."""
+    if not remainder:
+        return False
+    tok = remainder.split()[0].upper()
+    if len(tok) > 12 or any(c in tok for c in "&/(),;"):
+        return False
+    if not any(c.isdigit() for c in tok):
+        return False
+    if re.match(r"^(19|20)\d{2}$", tok):
+        return False
+    # UCLA-style: 31B, 3D, M148, 100A, 48CW, 314
+    return bool(re.match(r"^[A-Z]?\d{1,4}[A-Z]*$", tok))
+
+
+def _split_dept_remainder(line: str, sorted_dept_codes: list) -> tuple:
+    """
+    Match a department code at the start of line, including OCR cases where
+    spaces inside the code are missing (e.g. COMSCI31 -> COM SCI + 31).
+    """
+    if not line:
+        return None, None
+    for dept_code in sorted_dept_codes:
+        if dept_code == "SUMMER":
+            # "SUMMER" is a subject code but OCR'd section headers also start with SUMMER.
+            continue
+        if line.startswith(dept_code):
+            rem = line[len(dept_code) :].strip()
+            if rem:
+                return dept_code, rem
+        compact = dept_code.replace(" ", "")
+        if compact and line.startswith(compact):
+            rem = line[len(compact) :].strip()
+            if rem:
+                return dept_code, rem
+    return None, None
+
+
 def extract_taken_courses(dars_text: str):
     """
     Extract courses from DARS report text.
@@ -88,38 +141,49 @@ def extract_taken_courses(dars_text: str):
     # Sort department codes by length (longest first) to match greedily
     # This ensures "COM SCI" is matched before "COM"
     sorted_dept_codes = sorted(DEPARTMENT_CODES, key=len, reverse=True)
-    
-    # Pattern to match course lines: QUARTER + rest of line
-    course_pattern = r'^(FA|WI|SP|SU)(\d{2})\s+(.+)$'
-    
-    lines = section_text.split('\n')
-    
-    for line in lines:
-        line = line.strip()
-        match = re.match(course_pattern, line)
-        if match:
-            quarter_term = match.group(1)  # FA, WI, SP, SU
-            year = match.group(2)  # 23, 24, 25, 26
-            remainder = match.group(3).strip()  # Everything after quarter
-            
-            # Try to match a department code at the start of remainder
-            dept = None
-            course_num = None
-            
-            for dept_code in sorted_dept_codes:
-                if remainder.startswith(dept_code):
-                    # Found a matching department
-                    dept = dept_code
-                    # Everything after the department is the course number
-                    course_num = remainder[len(dept_code):].strip()
-                    break
-            
-            # Only add if we found a valid department and course number
-            if dept and course_num:
+
+    # Quarter on same line as department, or alone on previous line (vector/OCR PDFs)
+    combined_pattern = re.compile(r"^(FA|WI|SP|SU)(\d{2})\s+(.+)$")
+    quarter_only_pattern = re.compile(r"^(FA|WI|SP|SU)(\d{2})$")
+
+    lines = section_text.split("\n")
+    pending_quarter = None
+
+    for raw_line in lines:
+        line = _normalize_course_line(raw_line)
+        if not line:
+            continue
+
+        match_combined = combined_pattern.match(line)
+        if match_combined:
+            quarter_term = match_combined.group(1)
+            year = match_combined.group(2)
+            remainder = match_combined.group(3).strip()
+            dept, course_num = _split_dept_remainder(remainder, sorted_dept_codes)
+            if (
+                dept
+                and course_num
+                and _remainder_looks_like_catalog_number(course_num)
+            ):
                 quarter = f"{quarter_term}{year}"
-                course_code = f"{dept} {course_num}"
-                courses.append((quarter, course_code))
-    
+                courses.append((quarter, f"{dept} {course_num}"))
+                pending_quarter = quarter
+            continue
+
+        match_q = quarter_only_pattern.match(line)
+        if match_q:
+            pending_quarter = f"{match_q.group(1)}{match_q.group(2)}"
+            continue
+
+        if pending_quarter:
+            dept, course_num = _split_dept_remainder(line, sorted_dept_codes)
+            if (
+                dept
+                and course_num
+                and _remainder_looks_like_catalog_number(course_num)
+            ):
+                courses.append((pending_quarter, f"{dept} {course_num}"))
+
     return courses
 
 def extract_courses_from_file(filepath='output_pdfminer.txt'):

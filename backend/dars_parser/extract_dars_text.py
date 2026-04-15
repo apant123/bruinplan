@@ -1,5 +1,57 @@
 import re
+import shutil
 from pdfminer.high_level import extract_text
+
+
+def _looks_like_usable_dars_text(text: str) -> bool:
+    """True if extracted text plausibly contains a UCLA degree audit (not just a PDF shell)."""
+    collapsed = " ".join(text.split())
+    if len(collapsed) < 500:
+        return False
+    u = collapsed.upper()
+    if "UCLA" not in u:
+        return False
+    markers = (
+        "UCLA COURSEWORK",
+        "UCLA UNITS",
+        "ACADEMIC RECORD",
+        "MY DEGREE AUDIT",
+        "DEGREE REQUIREMENT",
+        "GRADED ATMPTD",
+        "AUDIT PREPARED",
+    )
+    return any(m in u for m in markers)
+
+
+def _extract_text_pymupdf_plain(pdf_path: str) -> str:
+    import fitz
+
+    doc = fitz.open(pdf_path)
+    try:
+        return "\n".join(page.get_text() for page in doc)
+    finally:
+        doc.close()
+
+
+def _extract_text_pymupdf_ocr(pdf_path: str, dpi: int = 150) -> str:
+    import fitz
+
+    if not shutil.which("tesseract"):
+        raise RuntimeError(
+            "Tesseract is not installed. Some DARS PDFs (for example CollegeSource / "
+            "MyUCLA exports) draw the audit as graphics with no text layer; Tesseract "
+            "is required to OCR them. On macOS: brew install tesseract; on Debian/Ubuntu: "
+            "apt install tesseract-ocr."
+        )
+    doc = fitz.open(pdf_path)
+    try:
+        parts = []
+        for page in doc:
+            tp = page.get_textpage_ocr(dpi=dpi, full=True)
+            parts.append(page.get_text(textpage=tp))
+        return "\n".join(parts)
+    finally:
+        doc.close()
 
 # Reuse the department codes from the other scripts for consistency
 DEPARTMENT_CODES = [
@@ -38,10 +90,50 @@ DEPARTMENT_CODES = [
 ]
 
 def extract_text_pdfminer(pdf_path: str) -> str:
-    """Extract text from a PDF file using pdfminer.six."""
+    """
+    Extract text from a DARS PDF.
+
+    Most audits expose a normal text layer (pdfminer is enough). Some exports
+    (notably certain CollegeSource viewers) render the audit as vector graphics,
+    so only boilerplate on the last page is extractable; those need PyMuPDF OCR
+    when Tesseract is installed.
+    """
     text = extract_text(pdf_path)
-    save_text_to_file(text, "extracted.txt")
-    return text
+    if _looks_like_usable_dars_text(text):
+        save_text_to_file(text, "extracted.txt")
+        return text
+
+    try:
+        plain = _extract_text_pymupdf_plain(pdf_path)
+    except ImportError:
+        plain = ""
+    except Exception:
+        plain = ""
+
+    if _looks_like_usable_dars_text(plain):
+        save_text_to_file(plain, "extracted.txt")
+        return plain
+
+    try:
+        ocr = _extract_text_pymupdf_ocr(pdf_path)
+    except ImportError as e:
+        raise ValueError(
+            "This PDF has little or no selectable text. Install the pymupdf package "
+            "(and Tesseract for OCR), or re-export the audit from your browser using "
+            "Print → Save as PDF."
+        ) from e
+    except RuntimeError as e:
+        raise ValueError(str(e)) from e
+
+    if _looks_like_usable_dars_text(ocr):
+        save_text_to_file(ocr, "extracted.txt")
+        return ocr
+
+    raise ValueError(
+        "Could not obtain readable DARS text from this PDF. Try re-exporting with "
+        "Print → Save as PDF, or install Tesseract and pymupdf so image/vector-only "
+        "audits can be OCR'd."
+    )
 
 def save_text_to_file(text: str, output_path: str):
     """Save text to a file."""

@@ -23,22 +23,6 @@ function CourseSidebar({
 }) {
   return (
     <aside className="plan-sidebar">
-      <div className="sidebar-section">
-        <h3>Course Search</h3>
-        <div className="search-input">
-          <input
-            type="text"
-            placeholder="Search courses"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="9" cy="9" r="6" stroke="#999" strokeWidth="2"/>
-            <path d="M14 14L17 17" stroke="#999" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        </div>
-      </div>
-
       <div className="sidebar-section" ref={subjectBoxRef}>
         <h3>Subject</h3>
 
@@ -62,7 +46,7 @@ function CourseSidebar({
           <input
             type="text"
             className="major-select"
-            placeholder={subjectsLoading ? 'Loading subjects…' : 'Search subject (code or name)'}
+            placeholder={subjectsLoading ? 'Loading subjects…' : 'Search subject '}
             value={subjectQuery}
             onChange={(e) => {
               onSubjectQueryChange(e.target.value);
@@ -97,6 +81,22 @@ function CourseSidebar({
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="sidebar-section">
+        <h3>Course Search</h3>
+        <div className="search-input">
+          <input
+            type="text"
+            placeholder="Search by course number"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+          />
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="9" cy="9" r="6" stroke="#999" strokeWidth="2"/>
+            <path d="M14 14L17 17" stroke="#999" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
         </div>
       </div>
 
