@@ -52,6 +52,8 @@ def _serialize_profile(profile: UserProfile):
         "completed_lower_div_units": profile.completed_lower_div_units,
         "completed_upper_div_units": profile.completed_upper_div_units,
         "gpa": profile.gpa,
+        "classes_taken": profile.classes_taken,
+        "classes_needed": profile.classes_needed,
         "created_at": profile.created_at,
         "updated_at": profile.updated_at,
     }

@@ -1,3 +1,4 @@
+import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from api.models import Course
@@ -74,6 +75,38 @@ def course_prereqs(request, course_id = None):
             "course_id": course_id,
             "requisites": reqs
         })
-         
 
+@api_view(["POST"])
+def courses_by_labels(request):
+    labels = request.data.get("labels", [])
+    if not labels:
+        return Response({"courses": []})
         
+    subjects = {s.id: s.code for s in Subject.objects.all()}
+    courses = Course.objects.all()
+    
+    course_by_label = {}
+    for c in courses:
+        code = subjects.get(c.subject_area_id, "")
+        label = f"{code} {c.number}".strip().upper()
+        label = re.sub(r'\s+', ' ', label)
+        course_by_label[label] = {
+            "id": c.id,
+            "subject_area_id": c.subject_area_id,
+            "subject_code": code,
+            "number": c.number,
+            "title": c.title,
+            "description": c.description,
+            "units": c.units,
+            "requisites_text": c.requisites_text,
+            "requisites_parsed": c.requisites_parsed,
+        }
+        
+    matched = []
+    for l in labels:
+        if not l: continue
+        l_norm = re.sub(r'\s+', ' ', str(l).strip().upper())
+        if l_norm in course_by_label:
+            matched.append(course_by_label[l_norm])
+            
+    return Response({"courses": matched})

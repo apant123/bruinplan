@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
+import CourseDetailModal from '../components/Plan/CourseDetailModal';
 import './DegreeProgress.css';
 
 function DegreeProgress() {
@@ -10,6 +12,177 @@ function DegreeProgress() {
     subjectArea: 'Computer Science (COM SCI)',
     units: 1
   });
+  const { user } = useAuth();
+  const [takenCourses, setTakenCourses] = useState([]);
+  const [takenCoursesLoading, setTakenCoursesLoading] = useState(false);
+  const [takenCoursesError, setTakenCoursesError] = useState('');
+
+  const [neededRequirements, setNeededRequirements] = useState([]);
+  const [neededCourseCache, setNeededCourseCache] = useState({});
+  const [neededCoursesLoading, setNeededCoursesLoading] = useState(false);
+  const [neededCoursesError, setNeededCoursesError] = useState('');
+  const [collapsedDynamicReqs, setCollapsedDynamicReqs] = useState({});
+  const [bookmarkedCourseIds, setBookmarkedCourseIds] = useState(new Set());
+  const [suggestedCourses, setSuggestedCourses] = useState([]);
+  const [expectedGraduation, setExpectedGraduation] = useState('');
+
+  const toggleDynamicReq = (idx) => {
+      setCollapsedDynamicReqs(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const [detailModal, setDetailModal] = useState({ open: false, course: null });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    async function fetchCourseData() {
+      setTakenCoursesLoading(true);
+      setNeededCoursesLoading(true);
+      try {
+        const userRes = await fetch('http://127.0.0.1:8000/api/user/', {
+          headers: { 'X-User-Id': user.id }
+        });
+        if (!userRes.ok) throw new Error('Failed to fetch user profile');
+        const userData = await userRes.json();
+        
+        if (userData.expected_grad && userData.year) {
+          const formattedSeason = userData.expected_grad.charAt(0).toUpperCase() + userData.expected_grad.slice(1).toLowerCase();
+          setExpectedGraduation(`${formattedSeason} ${userData.year}`);
+        }
+
+        const classesTaken = userData.classes_taken || [];
+        const takenLabels = classesTaken.map(c => typeof c === 'string' ? c : c?.course).filter(Boolean);
+
+        if (takenLabels.length > 0) {
+          const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-labels/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Id': user.id
+            },
+            body: JSON.stringify({ labels: takenLabels })
+          });
+          const cData = await cRes.ok ? await cRes.json() : { courses: [] };
+          setTakenCourses(cData.courses || []);
+        }
+
+        const classesNeeded = userData.classes_needed || [];
+        setNeededRequirements(classesNeeded);
+
+        const neededLabels = new Set();
+        classesNeeded.forEach((req) => {
+          (req.options || []).forEach(opt => {
+            if (Array.isArray(opt)) {
+              opt.forEach(o => neededLabels.add(o));
+            } else if (typeof opt === 'string') {
+              neededLabels.add(opt);
+            }
+          });
+        });
+
+        const neededLabelsArr = Array.from(neededLabels);
+        if (neededLabelsArr.length > 0) {
+          const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-labels/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Id': user.id
+            },
+            body: JSON.stringify({ labels: neededLabelsArr })
+          });
+          const cData = await cRes.ok ? await cRes.json() : { courses: [] };
+          
+          const labelToCourse = {};
+          cData.courses.forEach(c => {
+             labelToCourse[`${c.subject_code} ${c.number}`.trim().toLowerCase().replace(/\s+/g, ' ')] = c;
+          });
+          setNeededCourseCache(labelToCourse);
+
+          // Build suggestions based on prerequisites natively
+          const subjRes = await fetch('http://127.0.0.1:8000/api/subjects/', { headers: { 'Content-Type': 'application/json' } });
+          const subjData = await subjRes.ok ? await subjRes.json() : { subjects: [] };
+          const subjectMap = {};
+          subjData.subjects?.forEach(s => { subjectMap[s.name.toLowerCase()] = s.code.toUpperCase(); });
+
+          const takenSet = new Set(takenLabels.map(lbl => lbl.toUpperCase().replace(/\s+/g, ' ')));
+          const suggested = [];
+
+          Object.values(labelToCourse).forEach(course => {
+            const courseLabel = `${course.subject_code} ${course.number}`.toUpperCase().replace(/\s+/g, ' ');
+            if (takenSet.has(courseLabel)) return;
+
+            let prereqsMet = true;
+            if (course.requisites_parsed && course.requisites_parsed.requisites) {
+                const enforced = course.requisites_parsed.requisites.find(r => r.type === 'enforced');
+                if (enforced && enforced.groups && enforced.groups.length > 0) {
+                    prereqsMet = enforced.groups.every(group => {
+                        return group.courses.some(reqC => {
+                            const subjName = (reqC.subject || '').toLowerCase();
+                            const subjCode = subjectMap[subjName] || subjName.toUpperCase();
+                            const reqLabel = `${subjCode} ${reqC.number}`.toUpperCase().replace(/\s+/g, ' ');
+                            return takenSet.has(reqLabel);
+                        });
+                    });
+                }
+            }
+            if (prereqsMet) {
+                suggested.push(course);
+            }
+          });
+          setSuggestedCourses(suggested);
+        }
+
+        const bmRes = await fetch('http://127.0.0.1:8000/api/bookmarks/', {
+          headers: { 'X-User-Id': user.id }
+        });
+        if (bmRes.ok) {
+          const bmData = await bmRes.json();
+          setBookmarkedCourseIds(new Set(bmData.bookmarks || []));
+        }
+
+      } catch (err) {
+        console.error(err);
+        setTakenCoursesError('Could not load completed courses.');
+        setNeededCoursesError('Could not load needed courses.');
+      } finally {
+        setTakenCoursesLoading(false);
+        setNeededCoursesLoading(false);
+      }
+    }
+    fetchCourseData();
+  }, [user?.id]);
+
+  const toggleBookmark = async (e, courseId) => {
+    e.stopPropagation();
+    if (!user?.id) return;
+    
+    const isBookmarked = bookmarkedCourseIds.has(courseId);
+    const method = isBookmarked ? 'DELETE' : 'POST';
+    
+    setBookmarkedCourseIds(prev => {
+      const next = new Set(prev);
+      if (isBookmarked) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+    
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/bookmarks/${courseId}/`, {
+        method,
+        headers: { 'X-User-Id': user.id }
+      });
+      if (!res.ok) throw new Error('Failed to update bookmark');
+      const data = await res.json();
+      setBookmarkedCourseIds(new Set(data.bookmarks || []));
+    } catch (err) {
+      console.error(err);
+      setBookmarkedCourseIds(prev => {
+        const next = new Set(prev);
+        if (isBookmarked) next.add(courseId);
+        else next.delete(courseId);
+        return next;
+      });
+    }
+  };
 
   // Sample data
   const progressData = [
@@ -125,7 +298,7 @@ function DegreeProgress() {
                 <text x="8" y="11" textAnchor="middle" fill="#247ad6" fontSize="10" fontWeight="600">i</text>
               </svg>
             </div>
-            <div className="expected-grad">Expected: Spring 2026</div>
+            <div className="expected-grad">Expected: {expectedGraduation || 'Undeclared'}</div>
             <div className="graduation-progress-bar-container">
               <div className="graduation-progress-bar-fill"></div>
             </div>
@@ -167,15 +340,6 @@ function DegreeProgress() {
                 Completed
               </button>
               <button
-                className={`filter-btn ${filter === 'progress' ? 'active' : ''}`}
-                onClick={() => setFilter('progress')}
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <rect x="3" y="3" width="10" height="10" fill="#ffc107"/>
-                </svg>
-                In Progress
-              </button>
-              <button
                 className={`filter-btn ${filter === 'needed' ? 'active' : ''}`}
                 onClick={() => setFilter('needed')}
               >
@@ -187,51 +351,114 @@ function DegreeProgress() {
             </div>
 
             <div className="requirements-list">
-              {requirements.map(req => (
-                <div key={req.id} className="requirement-category">
-                  <div className="category-header" onClick={() => toggleCategory(req.id)}>
-                    <div>
-                      <h3>{req.title}</h3>
-                      {req.subtitle && <p className="category-subtitle">{req.subtitle}</p>}
-                    </div>
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      style={{
-                        transform: expandedCategories[req.id] ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s'
-                      }}
-                    >
-                      <path d="M6 8L10 12L14 8" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-
-                  {expandedCategories[req.id] && (
-                    <div className="category-content">
-                      {req.items.map((item, idx) => (
-                        <div key={idx} className="requirement-item">
-                          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <circle cx="10" cy="10" r="9" fill="#28a745"/>
-                            <path d="M6 10L9 13L14 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          <div>
-                            <div className="requirement-text">{item.text}</div>
-                            {item.courses.length > 0 && (
-                              <div className="course-links">
-                                {item.courses.map((course, cidx) => (
-                                  <span key={cidx} className="course-link">{course}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+              {(filter === 'completed' || filter === 'all') && (
+                 <div className="taken-courses-list" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                   {takenCoursesLoading ? (
+                     <div className="results-count">Loading completed courses...</div>
+                   ) : takenCoursesError ? (
+                     <div className="results-count" style={{ color: 'red' }}>{takenCoursesError}</div>
+                   ) : takenCourses.length === 0 ? (
+                     <div className="results-count">No completed courses synced to your profile yet!</div>
+                   ) : takenCourses.map(course => (
+                     <div 
+                         key={course.id} 
+                         className="suggestion-course-card" 
+                         style={{ cursor: 'pointer', padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #ebecf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                         onDoubleClick={() => setDetailModal({ open: true, course: { ...course, subjectCode: course.subject_code } })}
+                     >
+                        <div className="course-info">
+                          <div className="course-code" style={{ fontSize: '18px', fontWeight: 'bold', color: '#1d1d1f' }}>{course.subject_code} {course.number}</div>
+                          <div className="course-title" style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{course.title}</div>
+                          <div className="course-units" style={{ fontSize: '13px', color: '#999', marginTop: '8px' }}>{course.units} Units</div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                        <div className="course-actions">
+                          <button className="icon-button bookmark-icon" onClick={(e) => toggleBookmark(e, course.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill={bookmarkedCourseIds.has(course.id) ? "#247ad6" : "none"}>
+                              <path d="M4 3H16C16.55 3 17 3.45 17 4V17L10 14L3 17V4C3 3.45 3.45 3 4 3Z" stroke="#247ad6" strokeWidth="1.5" />
+                            </svg>
+                          </button>
+                        </div>
+                     </div>
+                   ))}
+                 </div>
+              )}
+              
+              {(filter === 'needed' || filter === 'all') && (
+                 <div className="needed-requirements-list" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                   {neededCoursesLoading ? (
+                     <div className="results-count">Loading needed requirements...</div>
+                   ) : neededCoursesError ? (
+                     <div className="results-count" style={{ color: 'red' }}>{neededCoursesError}</div>
+                   ) : neededRequirements.length === 0 ? (
+                     <div className="results-count">No needed courses synced to your profile yet!</div>
+                   ) : neededRequirements.map((req, rIdx) => {
+                       const rawText = req.needs_text || '';
+                       const parts = rawText.split('|').map(p => p.trim());
+                       const numNeeded = req.needs || 0;
+                       
+                       const rawOptions = [];
+                       (req.options || []).forEach(opt => {
+                          if (Array.isArray(opt)) {
+                             rawOptions.push(...opt);
+                          } else if (typeof opt === 'string') {
+                             rawOptions.push(opt);
+                          }
+                       });
+                       
+                       const matchedCourses = rawOptions.map(opt => {
+                           const key = opt.trim().toLowerCase().replace(/\s+/g, ' ');
+                           return neededCourseCache[key];
+                       }).filter(Boolean);
+
+                       return (
+                         <div key={rIdx} className="requirement-category" style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #dee2e6' }}>
+                           <div className="category-header" onClick={() => toggleDynamicReq(rIdx)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer' }}>
+                             <div style={{ paddingBottom: collapsedDynamicReqs[rIdx] ? '0' : '16px' }}>
+                               <h3 style={{ fontSize: '18px', margin: 0, color: '#1d1d1f' }}>{parts.length >= 2 ? parts[1] : parts[0]}</h3>
+                               <div style={{ marginTop: '8px', color: '#dc3545', fontWeight: '600' }}>Needs: {numNeeded} Course{numNeeded !== 1 ? 's' : ''}</div>
+                               {parts.length > 2 && <p style={{ fontSize: '13px', color: '#777', marginTop: '6px', lineHeight: '1.4' }}>{rawText}</p>}
+                             </div>
+                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ transform: collapsedDynamicReqs[rIdx] ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginTop: '4px' }}>
+                               <path d="M6 15L12 9L18 15" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                             </svg>
+                           </div>
+                           
+                           {!collapsedDynamicReqs[rIdx] && (
+                             <>
+                               {matchedCourses.length === 0 && (
+                                   <div style={{ fontSize: '14px', color: '#888' }}>No specific course options parsed.</div>
+                               )}
+
+                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                                 {matchedCourses.map((course, cIdx) => (
+                                   <div 
+                                        key={course.id + '-' + cIdx} 
+                                        className="suggestion-course-card" 
+                                        style={{ cursor: 'pointer', padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #ebecf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                        onDoubleClick={() => setDetailModal({ open: true, course: { ...course, subjectCode: course.subject_code } })}
+                                   >
+                                      <div className="course-info">
+                                        <div className="course-code" style={{ fontSize: '16px', fontWeight: 'bold', color: '#1d1d1f' }}>{course.subject_code} {course.number}</div>
+                                        <div className="course-title" style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{course.title}</div>
+                                        <div className="course-units" style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>{course.units} Units</div>
+                                      </div>
+                                      <div className="course-actions">
+                                        <button className="icon-button bookmark-icon" onClick={(e) => toggleBookmark(e, course.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                                          <svg width="20" height="20" viewBox="0 0 20 20" fill={bookmarkedCourseIds.has(course.id) ? "#247ad6" : "none"}>
+                                            <path d="M4 3H16C16.55 3 17 3.45 17 4V17L10 14L3 17V4C3 3.45 3.45 3 4 3Z" stroke="#247ad6" strokeWidth="1.5" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             </>
+                           )}
+                         </div>
+                       );
+                    })}
+                 </div>
+              )}
             </div>
           </div>
         )}
@@ -278,32 +505,38 @@ function DegreeProgress() {
               </div>
             </aside>
 
-            <div className="suggestions-courses">
-              {sampleCourses.map(course => (
-                <div key={course.id} className="suggestion-course-card">
-                  <div className="course-info">
-                    <div className="course-code">{course.code}</div>
-                    <div className="course-title">{course.title}</div>
-                    <div className="course-units">{course.units} Units</div>
-                  </div>
-                  <div className="course-actions">
-                    <button className="icon-button">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M4 3H16C16.55 3 17 3.45 17 4V17L10 14L3 17V4C3 3.45 3.45 3 4 3Z" stroke="#247ad6" strokeWidth="1.5" fill="none"/>
-                      </svg>
-                    </button>
-                    <button className="icon-button">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M10 3L11.5 8.5H17L12.5 12L14 17.5L10 14L6 17.5L7.5 12L3 8.5H8.5L10 3Z" stroke="#247ad6" strokeWidth="1.5" fill="none"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+            <div className="suggestions-courses" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+              {suggestedCourses.map(course => (
+                 <div 
+                      key={course.id} 
+                      className="suggestion-course-card" 
+                      style={{ cursor: 'pointer', padding: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #ebecf0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onDoubleClick={() => setDetailModal({ open: true, course: { ...course, subjectCode: course.subject_code } })}
+                 >
+                    <div className="course-info">
+                      <div className="course-code" style={{ fontSize: '16px', fontWeight: 'bold', color: '#1d1d1f' }}>{course.subject_code} {course.number}</div>
+                      <div className="course-title" style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{course.title}</div>
+                      <div className="course-units" style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>{course.units} Units</div>
+                    </div>
+                    <div className="course-actions">
+                      <button className="icon-button bookmark-icon" onClick={(e) => toggleBookmark(e, course.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill={bookmarkedCourseIds.has(course.id) ? "#247ad6" : "none"}>
+                          <path d="M4 3H16C16.55 3 17 3.45 17 4V17L10 14L3 17V4C3 3.45 3.45 3 4 3Z" stroke="#247ad6" strokeWidth="1.5" />
+                        </svg>
+                      </button>
+                    </div>
+                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      <CourseDetailModal
+        isOpen={detailModal.open}
+        course={detailModal.course}
+        onClose={() => setDetailModal({ open: false, course: null })}
+      />
     </div>
   );
 }
