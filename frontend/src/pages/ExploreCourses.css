@@ -613,6 +613,16 @@
   color: #247ad6;
 }
 
+.subject-search .major-tag {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
 .remove-tag {
   background: none;
   border: none;

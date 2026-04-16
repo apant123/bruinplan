@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
+import AddToPlanModal from '../components/Explore/AddToPlanModal';
 import './ExploreCourses.css';
 
 function ExploreCourses() {
@@ -24,6 +25,9 @@ function ExploreCourses() {
 
   const [expandedCourses, setExpandedCourses] = useState({});
   const [activeTab, setActiveTab] = useState({});
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [courseToAdd, setCourseToAdd] = useState(null);
 
   const [filters, setFilters] = useState({
     term: '',
@@ -332,7 +336,7 @@ function ExploreCourses() {
           <div className="courses-header">
             <div className="search-bar subject-search" ref={subjectBoxRef} style={{ maxWidth: '300px' }}>
               {selectedSubject ? (
-                <div className="major-tag" style={{ margin: 0, height: '100%' }}>
+                <div className="major-tag">
                   <span>
                     {selectedSubject.code}
                   </span>
@@ -476,7 +480,14 @@ function ExploreCourses() {
                           </div>
                         )}
                         <div className="add-to-plan-container">
-                           <button className="add-to-plan-button" onClick={() => alert('Add to plan functionality coming soon!')}>
+                           <button className="add-to-plan-button" onClick={() => {
+                             setCourseToAdd({
+                               id: course.id,
+                               subjectCode: course.subjectCode || selectedSubject?.code || '',
+                               number: course.number || ''
+                             });
+                             setIsAddModalOpen(true);
+                           }}>
                                + Add to Plan
                            </button>
                         </div>
@@ -495,6 +506,12 @@ function ExploreCourses() {
           </div>
         </main>
       </div>
+      <AddToPlanModal
+        isOpen={isAddModalOpen}
+        course={courseToAdd}
+        userId={user?.id}
+        onClose={() => setIsAddModalOpen(false)}
+      />
     </div>
   );
 }
