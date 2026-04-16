@@ -252,7 +252,7 @@ function ExploreCourses() {
     <div className="explore-courses-page">
       <NavBar />
       <div className="explore-container">
-        <aside className="filters-sidebar">
+        {/* <aside className="filters-sidebar">
           <div className="filters-header">
             <h2>Filters</h2>
             <button className="clear-button" onClick={handleClearFilters}>
@@ -331,7 +331,7 @@ function ExploreCourses() {
               <option value="grad">Graduate</option>
             </select>
           </div>
-        </aside>
+        </aside> */}
 
         <main className="courses-main">
           <div className="courses-header">

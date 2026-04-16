@@ -29,9 +29,13 @@ function GradeDistributionChart({ courseId }) {
   }, [courseId]);
 
   const terms = useMemo(() => {
-    const t = new Set(data.map(d => d.term));
+    let filtered = data;
+    if (selectedInstructor !== 'All') {
+      filtered = data.filter(d => d.instructor === selectedInstructor);
+    }
+    const t = new Set(filtered.map(d => d.term));
     return ['All', ...Array.from(t)];
-  }, [data]);
+  }, [data, selectedInstructor]);
 
   const instructors = useMemo(() => {
     let filtered = data;
@@ -48,6 +52,13 @@ function GradeDistributionChart({ courseId }) {
       setSelectedInstructor('All');
     }
   }, [selectedInstructor, instructors]);
+
+  // Reset term to 'All' if selected instructor changes and term isn't valid anymore
+  useEffect(() => {
+    if (selectedTerm !== 'All' && !terms.includes(selectedTerm)) {
+      setSelectedTerm('All');
+    }
+  }, [selectedTerm, terms]);
 
   const chartData = useMemo(() => {
     if (!data.length) return [];
