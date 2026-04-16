@@ -10,4 +10,6 @@ urlpatterns = [
     path("user/", include("api.urls.users")),
     path("dars/", include("api.urls.dars")),
     path("bookmarks/", include("api.urls.bookmarks")),
+    path("units/", include("api.urls.units")),
+
 ]
