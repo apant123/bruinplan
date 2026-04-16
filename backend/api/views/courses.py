@@ -1,8 +1,9 @@
 import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from api.models import Course
+from api.models.course import Course
 from api.models.subject import Subject
+from api.models.gradeDistribution import GradeDistribution
 
 @api_view(["GET"])
 def list_courses(request, subject_area_id = None):
@@ -110,3 +111,21 @@ def courses_by_labels(request):
             matched.append(course_by_label[l_norm])
             
     return Response({"courses": matched})
+
+@api_view(["GET"])
+def course_grades(request, course_id=None):
+    if not course_id:
+        return Response({"error": "course_id is required"}, status=400)
+    
+    distributions = GradeDistribution.objects.filter(course_id=course_id)
+    
+    data = []
+    for d in distributions:
+        data.append({
+            "term": d.term,
+            "instructor": d.instructor,
+            "grades_json": d.grades_json,
+            "total_enrolled": d.total_enrolled
+        })
+
+    return Response({"grades": data})

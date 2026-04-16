@@ -51,3 +51,6 @@ backend\backend\settings.py
 frontend/node_modules/.cache/.eslintcache
 frontend/node_modules/.cache/default-development/0.pack
 frontend/node_modules/.cache/default-development/index.pack
+
+# data exports
+Responsive Documents*.csv

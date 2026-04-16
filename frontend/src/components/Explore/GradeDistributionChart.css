@@ -1,0 +1,44 @@
+.grade-distribution-container {
+    padding: 10px;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.grade-filters {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #444;
+}
+
+.filter-group select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    min-width: 150px;
+    background: #fff;
+}
+
+.chart-wrapper {
+    margin-top: 10px;
+}
+
+.grades-loading, .grades-empty {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}

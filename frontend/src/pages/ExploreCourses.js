@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
 import AddToPlanModal from '../components/Explore/AddToPlanModal';
+import GradeDistributionChart from '../components/Explore/GradeDistributionChart';
 import './ExploreCourses.css';
 
 function ExploreCourses() {
@@ -466,7 +467,7 @@ function ExploreCourses() {
                         className={`tab-button ${activeTab[course.id] === 'times' ? 'active' : ''}`}
                         onClick={() => setTab(course.id, 'times')}
                       >
-                        Course Times
+                        Grade Distributions
                       </button>
                     </div>
 
@@ -496,7 +497,7 @@ function ExploreCourses() {
                     
                     {activeTab[course.id] === 'times' && (
                         <div className="course-details-content">
-                            <p>Course time information is not yet available for this term.</p>
+                            <GradeDistributionChart courseId={course.id} />
                         </div>
                     )}
                   </div>
