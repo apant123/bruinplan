@@ -39,6 +39,7 @@ class UserProfile(models.Model):
 
     classes_taken = models.JSONField(null=True)
     classes_needed = models.JSONField(null=True)
+    bookmarked = models.JSONField(null=True)
 
     class Meta:
         db_table = "user_profiles"

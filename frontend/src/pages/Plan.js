@@ -41,6 +41,8 @@ function Plan() {
   const location = useLocation();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState('');
+  const [showBookmarked, setShowBookmarked] = useState(false);
+  const [bookmarkedCourseIds, setBookmarkedCourseIds] = useState(new Set());
 
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(false);
@@ -110,6 +112,49 @@ function Plan() {
   }, [selectedSubject?.id]);
 
   useEffect(() => {
+    if (!user?.id) return;
+    async function fetchBookmarks() {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/bookmarks/', {
+          headers: { 'X-User-Id': user.id }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const ids = data.bookmarks || [];
+          setBookmarkedCourseIds(new Set(ids));
+          
+          if (ids.length > 0) {
+            const missingIds = ids.filter(id => !courseCache[id]);
+            if (missingIds.length > 0) {
+              const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-ids/?ids=${missingIds.join(',')}`);
+              if (cRes.ok) {
+                const cData = await cRes.json();
+                const newCache = {};
+                for (const c of (cData?.courses || [])) {
+                  newCache[c.id] = { 
+                    id: c.id,
+                    subjectCode: c.subject_code, 
+                    number: c.number, 
+                    title: c.title, 
+                    description: c.description,
+                    units: c.units,
+                    requisites_text: c.requisites_text,
+                    requisites_parsed: c.requisites_parsed
+                  };
+                }
+                setCourseCache(prev => ({ ...prev, ...newCache }));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch bookmarks', err);
+      }
+    }
+    fetchBookmarks();
+  }, [user?.id]);
+
+  useEffect(() => {
     function onDocMouseDown(e) {
       if (!subjectBoxRef.current) return;
       if (!subjectBoxRef.current.contains(e.target)) setSubjectDropdownOpen(false);
@@ -137,13 +182,19 @@ function Plan() {
       .filter((s) => (s.code || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q));
   }, [subjects, subjectQuery]);
 
-  const courseLabel = (c) => `${selectedSubject?.code ?? ''} ${c?.number ?? ''}`.trim();
+  const courseLabel = (c) => `${c?.subjectCode || selectedSubject?.code || ''} ${c?.number ?? ''}`.trim();
 
   const planCourseIds = useMemo(() => new Set(planItems.map(it => it.course_id)), [planItems]);
 
   const filteredCourses = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const base = courses.filter(c => !planCourseIds.has(c.id));
+    
+    let base = courses;
+    if (showBookmarked) {
+        base = [...bookmarkedCourseIds].map(id => courseCache[id]).filter(Boolean);
+    }
+    base = base.filter(c => !planCourseIds.has(c.id));
+    
     if (!q) return base.slice(0, 60);
     return base
       .filter((c) => {
@@ -153,7 +204,7 @@ function Plan() {
         return label.includes(q) || title.includes(q) || desc.includes(q);
       })
       .slice(0, 60);
-  }, [courses, searchQuery, selectedSubject?.code, planCourseIds]);
+  }, [courses, searchQuery, selectedSubject?.code, planCourseIds, showBookmarked, bookmarkedCourseIds, courseCache]);
 
   const itemsByYearTerm = useMemo(() => {
     const grid = {};
@@ -699,6 +750,8 @@ function Plan() {
           filteredCourses={filteredCourses}
           courseLabel={courseLabel}
           onCourseDoubleClick={(course) => setDetailModal({ open: true, course })}
+          showBookmarked={showBookmarked}
+          onToggleBookmarked={setShowBookmarked}
         />
 
         <main className="plan-main">

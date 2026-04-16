@@ -1,158 +1,215 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
 import './ExploreCourses.css';
 
 function ExploreCourses() {
+  const { user } = useAuth();
+  const [bookmarkedCourseIds, setBookmarkedCourseIds] = useState(new Set());
+  const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false);
+  const [courseCache, setCourseCache] = useState({});
+
+  const [subjects, setSubjects] = useState([]);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [subjectsError, setSubjectsError] = useState('');
+  const [subjectQuery, setSubjectQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const subjectBoxRef = useRef(null);
+
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
   const [expandedCourses, setExpandedCourses] = useState({});
-  const [expandedLectures, setExpandedLectures] = useState({});
   const [activeTab, setActiveTab] = useState({});
-  const [selectedLectures, setSelectedLectures] = useState({});
-  const [selectedDiscussions, setSelectedDiscussions] = useState({});
+
   const [filters, setFilters] = useState({
     term: '',
-    subjectArea: 'Computer Science (COM SCI)',
     units: 1,
-    instructor: '',
     meetingDays: [],
     startTime: '',
     endTime: '',
-    location: '',
     level: ''
   });
 
-  const sampleCourses = [
-    {
-      id: 1,
-      code: 'COM SCI 32',
-      title: 'Introduction to Computer Science II',
-      units: 4.0,
-      lectures: [
-        {
-          id: 'lec1',
-          section: 'Lec 1',
-          classId: '187096200',
-          status: 'Open 139/180',
-          statusType: 'open',
-          days: 'MW',
-          time: '4:00pm-5:50pm',
-          location: 'La Kretz Hall 110',
-          instructor: 'Huang, B.K.',
-          discussions: [
-            { id: 'dis1a', section: 'Dis 1A', classId: '187096201', status: 'Open 58/60', statusType: 'open', days: 'F', time: '12:00pm-1:50pm', location: 'Dodd Hall 175', instructor: 'TA' },
-            { id: 'dis1b', section: 'Dis 1B', classId: '187096201', status: 'Open 58/60', statusType: 'open', days: 'F', time: '12:00pm-1:50pm', location: 'Dodd Hall 175', instructor: 'TA' },
-            { id: 'dis1c', section: 'Dis 1C', classId: '187096201', status: 'Open 58/60', statusType: 'open', days: 'F', time: '12:00pm-1:50pm', location: 'Dodd Hall 175', instructor: 'TA' },
-            { id: 'dis1d', section: 'Dis 1D', classId: '187096201', status: 'Open 58/60', statusType: 'open', days: 'F', time: '12:00pm-1:50pm', location: 'Dodd Hall 175', instructor: 'TA' }
-          ]
-        },
-        {
-          id: 'lec2',
-          section: 'Lec 2',
-          classId: '187096200',
-          status: 'Waitlist 1/4',
-          statusType: 'waitlist',
-          days: 'MW',
-          time: '4:00pm-5:50pm',
-          location: 'La Kretz Hall 110',
-          instructor: 'Huang, B.K.',
-          discussions: []
-        }
-      ]
-    },
-    {
-      id: 2,
-      code: 'COM SCI 32',
-      title: 'Introduction to Computer Science II',
-      units: 4.0,
-      lectures: [
-        {
-          id: 'lec1',
-          section: 'Lec 1',
-          classId: '187096200',
-          status: 'Open 139/180',
-          statusType: 'open',
-          days: 'MW',
-          time: '4:00pm-5:50pm',
-          location: 'La Kretz Hall 110',
-          instructor: 'Huang, B.K.',
-          discussions: []
-        }
-      ]
-    },
-    {
-      id: 3,
-      code: 'COM SCI 32',
-      title: 'Introduction to Computer Science II',
-      units: 4.0,
-      lectures: [
-        {
-          id: 'lec1',
-          section: 'Lec 1',
-          classId: '187096200',
-          status: 'Open 139/180',
-          statusType: 'open',
-          days: 'MW',
-          time: '4:00pm-5:50pm',
-          location: 'La Kretz Hall 110',
-          instructor: 'Huang, B.K.',
-          discussions: []
-        }
-      ]
-    },
-    {
-      id: 4,
-      code: 'COM SCI 32',
-      title: 'Introduction to Computer Science II',
-      units: 4.0,
-      lectures: [
-        {
-          id: 'lec1',
-          section: 'Lec 1',
-          classId: '187096200',
-          status: 'Open 139/180',
-          statusType: 'open',
-          days: 'MW',
-          time: '4:00pm-5:50pm',
-          location: 'La Kretz Hall 110',
-          instructor: 'Huang, B.K.',
-          discussions: []
-        }
-      ]
-    },
-    {
-      id: 5,
-      code: 'COM SCI 32',
-      title: 'Introduction to Computer Science II',
-      units: 4.0,
-      lectures: [
-        {
-          id: 'lec1',
-          section: 'Lec 1',
-          classId: '187096200',
-          status: 'Open 139/180',
-          statusType: 'open',
-          days: 'MW',
-          time: '4:00pm-5:50pm',
-          location: 'La Kretz Hall 110',
-          instructor: 'Huang, B.K.',
-          discussions: []
-        }
-      ]
-    }
-  ];
-
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSubjects() {
+      setSubjectsLoading(true);
+      setSubjectsError('');
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/subjects', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const list = Array.isArray(data?.subjects) ? data.subjects : [];
+        list.sort((a, b) => {
+          const c = (a.code || '').localeCompare(b.code || '');
+          return c !== 0 ? c : (a.name || '').localeCompare(b.name || '');
+        });
+        if (!cancelled) setSubjects(list);
+      } catch (e) {
+        if (!cancelled) setSubjectsError('Failed to load subjects.');
+      } finally {
+        if (!cancelled) setSubjectsLoading(false);
+      }
+    }
+    loadSubjects();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    async function fetchBookmarks() {
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/bookmarks/', {
+          headers: { 'X-User-Id': user.id }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const ids = data.bookmarks || [];
+          setBookmarkedCourseIds(new Set(ids));
+          
+          if (ids.length > 0) {
+            const missingIds = ids.filter(id => !courseCache[id]);
+            if (missingIds.length > 0) {
+              const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-ids/?ids=${missingIds.join(',')}`);
+              if (cRes.ok) {
+                const cData = await cRes.json();
+                const newCache = {};
+                for (const c of (cData?.courses || [])) {
+                  newCache[c.id] = { 
+                    id: c.id,
+                    subjectCode: c.subject_code, 
+                    number: c.number, 
+                    title: c.title, 
+                    description: c.description,
+                    units: c.units,
+                    requisites_text: c.requisites_text,
+                    requisites_parsed: c.requisites_parsed
+                  };
+                }
+                setCourseCache(prev => ({ ...prev, ...newCache }));
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch bookmarks', err);
+      }
+    }
+    fetchBookmarks();
+  }, [user?.id]);
+
+  const toggleBookmark = async (e, courseId) => {
+    e.stopPropagation();
+    if (!user?.id) return;
+    
+    const isBookmarked = bookmarkedCourseIds.has(courseId);
+    const method = isBookmarked ? 'DELETE' : 'POST';
+    
+    // Optimistic update
+    setBookmarkedCourseIds(prev => {
+      const next = new Set(prev);
+      if (isBookmarked) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+    
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/bookmarks/${courseId}/`, {
+        method,
+        headers: { 'X-User-Id': user.id }
+      });
+      if (!res.ok) throw new Error('Failed to update bookmark');
+      const data = await res.json();
+      setBookmarkedCourseIds(new Set(data.bookmarks || []));
+    } catch (err) {
+      console.error(err);
+      // Revert on error
+      setBookmarkedCourseIds(prev => {
+        const next = new Set(prev);
+        if (isBookmarked) next.add(courseId);
+        else next.delete(courseId);
+        return next;
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedSubject?.id) { setCourses([]); return; }
+    let cancelled = false;
+    async function loadCourses() {
+      setCoursesLoading(true);
+      setCoursesError('');
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/api/courses/${selectedSubject.id}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const list = Array.isArray(data?.courses) ? data.courses : [];
+        if (!cancelled) setCourses(list);
+      } catch (e) {
+        if (!cancelled) setCoursesError('Failed to load courses.');
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    }
+    loadCourses();
+    return () => { cancelled = true; };
+  }, [selectedSubject?.id]);
+
+  useEffect(() => {
+    function onDocMouseDown(e) {
+      if (!subjectBoxRef.current) return;
+      if (!subjectBoxRef.current.contains(e.target)) setSubjectDropdownOpen(false);
+    }
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  const filteredSubjects = useMemo(() => {
+    const q = subjectQuery.trim().toLowerCase();
+    if (!q) return subjects;
+    return subjects
+      .filter((s) => (s.code || '').toLowerCase().includes(q) || (s.name || '').toLowerCase().includes(q));
+  }, [subjects, subjectQuery]);
+
+  const courseLabel = (c) => `${c?.subjectCode || selectedSubject?.code || ''} ${c?.number ?? ''}`.trim();
+
+  const filteredCourses = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let base = courses;
+    
+    if (showBookmarkedOnly) {
+        base = [...bookmarkedCourseIds].map(id => courseCache[id]).filter(Boolean);
+    }
+
+    if (!q) return base;
+    return base
+      .filter((c) => {
+        const label = courseLabel(c).toLowerCase();
+        const title = (c.title || '').toLowerCase();
+        const desc = (c.description || '').toLowerCase();
+        return label.includes(q) || title.includes(q) || desc.includes(q);
+      });
+  }, [courses, searchQuery, selectedSubject?.code, showBookmarkedOnly, bookmarkedCourseIds, courseCache]);
 
   const handleClearFilters = () => {
     setFilters({
       term: '',
-      subjectArea: '',
       units: 1,
-      instructor: '',
       meetingDays: [],
       startTime: '',
       endTime: '',
-      location: '',
       level: ''
     });
   };
@@ -174,7 +231,7 @@ function ExploreCourses() {
     if (!activeTab[courseId]) {
       setActiveTab(prev => ({
         ...prev,
-        [courseId]: 'times'
+        [courseId]: 'details'
       }));
     }
   };
@@ -186,52 +243,9 @@ function ExploreCourses() {
     }));
   };
 
-  const toggleLectureExpand = (courseId, lectureId) => {
-    const key = `${courseId}-${lectureId}`;
-    setExpandedLectures(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const toggleLectureSelect = (courseId, lectureId) => {
-    const key = `${courseId}-${lectureId}`;
-    setSelectedLectures(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const toggleDiscussionSelect = (courseId, lectureId, discussionId) => {
-    const lectureKey = `${courseId}-${lectureId}`;
-    const key = `${courseId}-${lectureId}-${discussionId}`;
-
-    // Auto-select lecture when discussion is selected
-    if (!selectedDiscussions[key]) {
-      setSelectedLectures(prev => ({
-        ...prev,
-        [lectureKey]: true
-      }));
-    }
-
-    setSelectedDiscussions(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const hasSelectedDiscussions = (courseId) => {
-    return Object.keys(selectedDiscussions).some(key => key.startsWith(`${courseId}-`) && selectedDiscussions[key]);
-  };
-
-  const handleAddToPlan = (courseId) => {
-    alert('Add to Plan functionality coming soon!');
-  };
-
   return (
     <div className="explore-courses-page">
       <NavBar />
-
       <div className="explore-container">
         <aside className="filters-sidebar">
           <div className="filters-header">
@@ -255,16 +269,6 @@ function ExploreCourses() {
           </div>
 
           <div className="filter-group">
-            <label>Subject Area</label>
-            <select value={filters.subjectArea} onChange={(e) => setFilters({...filters, subjectArea: e.target.value})}>
-              <option value="">Select subject</option>
-              <option value="Computer Science (COM SCI)">Computer Science (COM SCI)</option>
-              <option value="Mathematics (MATH)">Mathematics (MATH)</option>
-              <option value="Psychology (PSYCH)">Psychology (PSYCH)</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
             <label>Class Units</label>
             <input
               type="range"
@@ -282,15 +286,6 @@ function ExploreCourses() {
               <span>5</span>
               <span>6</span>
             </div>
-          </div>
-
-          <div className="filter-group">
-            <label>Instructor</label>
-            <select value={filters.instructor} onChange={(e) => setFilters({...filters, instructor: e.target.value})}>
-              <option value="">Enter instructor's last name</option>
-              <option value="smith">Smith</option>
-              <option value="johnson">Johnson</option>
-            </select>
           </div>
 
           <div className="filter-group">
@@ -323,15 +318,6 @@ function ExploreCourses() {
           </div>
 
           <div className="filter-group">
-            <label>Location</label>
-            <select value={filters.location} onChange={(e) => setFilters({...filters, location: e.target.value})}>
-              <option value="">Enter location</option>
-              <option value="boelter">Boelter Hall</option>
-              <option value="royce">Royce Hall</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
             <label>Level</label>
             <select value={filters.level} onChange={(e) => setFilters({...filters, level: e.target.value})}>
               <option value="">Enter class level</option>
@@ -344,46 +330,115 @@ function ExploreCourses() {
 
         <main className="courses-main">
           <div className="courses-header">
+            <div className="search-bar subject-search" ref={subjectBoxRef} style={{ maxWidth: '300px' }}>
+              {selectedSubject ? (
+                <div className="major-tag" style={{ margin: 0, height: '100%' }}>
+                  <span>
+                    {selectedSubject.code}
+                  </span>
+                  <button
+                    className="remove-tag"
+                    type="button"
+                    onClick={() => {
+                      setSelectedSubject(null);
+                      setSubjectQuery('');
+                    }}
+                    aria-label="Clear subject"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder={subjectsLoading ? 'Loading subjects…' : 'Search subject'}
+                    value={subjectQuery}
+                    onChange={(e) => {
+                      setSubjectQuery(e.target.value);
+                      setSubjectDropdownOpen(true);
+                    }}
+                    onFocus={() => setSubjectDropdownOpen(true)}
+                    disabled={subjectsLoading}
+                  />
+                  {subjectDropdownOpen && !subjectsLoading && (
+                    <div className="subject-dropdown">
+                      {filteredSubjects.length === 0 ? (
+                        <div className="subject-empty">No matches</div>
+                      ) : (
+                        filteredSubjects.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className="subject-option"
+                            onClick={() => {
+                              setSelectedSubject({ id: s.id, code: s.code, name: s.name });
+                              setSubjectQuery(s.code);
+                              setSubjectDropdownOpen(false);
+                            }}
+                          >
+                            <div className="subject-code">{s.code}</div>
+                            <div className="subject-name">{s.name}</div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className="search-bar">
               <input
                 type="text"
-                placeholder="Search courses"
+                placeholder="Search courses by number or title"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={!selectedSubject}
               />
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <circle cx="9" cy="9" r="6" stroke="#999" strokeWidth="2"/>
                 <path d="M14 14L17 17" stroke="#999" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-            <button className="bookmarked-button">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 2H13C13.55 2 14 2.45 14 3V14L8 11L2 14V3C2 2.45 2.45 2 3 2Z" stroke="#247ad6" strokeWidth="1.5" fill="none"/>
+            <button 
+              className={`bookmarked-button ${showBookmarkedOnly ? 'active' : ''}`}
+              onClick={() => setShowBookmarkedOnly(!showBookmarkedOnly)}
+              style={showBookmarkedOnly ? { background: '#f0f7ff' } : {}}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill={showBookmarkedOnly ? "#247ad6" : "none"}>
+                <path d="M3 2H13C13.55 2 14 2.45 14 3V14L8 11L2 14V3C2 2.45 2.45 2 3 2Z" stroke="#247ad6" strokeWidth="1.5" />
               </svg>
               Bookmarked
             </button>
           </div>
 
-          <div className="results-count">2540 Results</div>
+          {!selectedSubject && !showBookmarkedOnly ? (
+            <div className="results-count">Please select a subject to view courses.</div>
+          ) : (
+            <div className="results-count">
+              {coursesLoading ? 'Loading courses...' : 
+                (showBookmarkedOnly && filteredCourses.length === 0) 
+                  ? 'No courses bookmarked.' 
+                  : `${filteredCourses.length} Results${showBookmarkedOnly ? ' for Bookmarks' : ` for ${selectedSubject?.code || ''}`}`}
+            </div>
+          )}
+
+          {coursesError && <div className="results-count" style={{ color: 'red' }}>{coursesError}</div>}
 
           <div className="courses-list">
-            {sampleCourses.map(course => (
+            {!coursesLoading && filteredCourses.map(course => (
               <div key={course.id} className="course-card-wrapper">
                 <div className="course-card">
                   <div className="course-info" onClick={() => toggleCourseExpand(course.id)}>
-                    <div className="course-code">{course.code}</div>
+                    <div className="course-code">{courseLabel(course)}</div>
                     <div className="course-title">{course.title}</div>
                     <div className="course-units">{course.units} Units</div>
                   </div>
                   <div className="course-actions">
-                    <button className="icon-button">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M4 3H16C16.55 3 17 3.45 17 4V17L10 14L3 17V4C3 3.45 3.45 3 4 3Z" stroke="#247ad6" strokeWidth="1.5" fill="none"/>
-                      </svg>
-                    </button>
-                    <button className="icon-button">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M10 3L11.5 8.5H17L12.5 12L14 17.5L10 14L6 17.5L7.5 12L3 8.5H8.5L10 3Z" stroke="#247ad6" strokeWidth="1.5" fill="none"/>
+                    <button className="icon-button bookmark-icon" onClick={(e) => toggleBookmark(e, course.id)}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill={bookmarkedCourseIds.has(course.id) ? "#247ad6" : "none"}>
+                        <path d="M4 3H16C16.55 3 17 3.45 17 4V17L10 14L3 17V4C3 3.45 3.45 3 4 3Z" stroke="#247ad6" strokeWidth="1.5" />
                       </svg>
                     </button>
                     <button className="expand-button" onClick={() => toggleCourseExpand(course.id)}>
@@ -398,113 +453,40 @@ function ExploreCourses() {
                   <div className="course-details">
                     <div className="course-tabs">
                       <button
-                        className={`tab-button ${(!activeTab[course.id] || activeTab[course.id] === 'times') ? 'active' : ''}`}
-                        onClick={() => setTab(course.id, 'times')}
-                      >
-                        Course Times
-                      </button>
-                      <button
-                        className={`tab-button ${activeTab[course.id] === 'details' ? 'active' : ''}`}
+                        className={`tab-button ${(!activeTab[course.id] || activeTab[course.id] === 'details') ? 'active' : ''}`}
                         onClick={() => setTab(course.id, 'details')}
                       >
                         Details
                       </button>
+                      <button
+                        className={`tab-button ${activeTab[course.id] === 'times' ? 'active' : ''}`}
+                        onClick={() => setTab(course.id, 'times')}
+                      >
+                        Course Times
+                      </button>
                     </div>
 
-                    {(!activeTab[course.id] || activeTab[course.id] === 'times') && (
-                      <div className="course-table-wrapper">
-                        <div className="course-table">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th></th>
-                                <th>Section</th>
-                                <th>Class ID</th>
-                                <th>Status</th>
-                                <th>Days</th>
-                                <th>Time</th>
-                                <th>Location</th>
-                                <th>Instructor</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {course.lectures.map((lecture) => {
-                                const lectureKey = `${course.id}-${lecture.id}`;
-                                const isLectureExpanded = expandedLectures[lectureKey];
-                                const hasDiscussions = lecture.discussions && lecture.discussions.length > 0;
-
-                                return (
-                                  <React.Fragment key={lecture.id}>
-                                    <tr className="lecture-row">
-                                      <td>
-                                        <button
-                                          className="expand-icon-button"
-                                          onClick={() => hasDiscussions ? toggleLectureExpand(course.id, lecture.id) : toggleLectureSelect(course.id, lecture.id)}
-                                        >
-                                          {hasDiscussions && isLectureExpanded ? '−' : '+'}
-                                        </button>
-                                      </td>
-                                      <td className="section-name">{lecture.section}</td>
-                                      <td>{lecture.classId}</td>
-                                      <td>
-                                        <span className={`status-badge ${lecture.statusType}`}>
-                                          {lecture.status}
-                                        </span>
-                                      </td>
-                                      <td>{lecture.days}</td>
-                                      <td>{lecture.time}</td>
-                                      <td>{lecture.location}</td>
-                                      <td>{lecture.instructor}</td>
-                                    </tr>
-
-                                    {isLectureExpanded && hasDiscussions && lecture.discussions.map((discussion) => {
-                                      const discussionKey = `${course.id}-${lecture.id}-${discussion.id}`;
-                                      return (
-                                        <tr key={discussion.id} className="discussion-row">
-                                          <td>
-                                            <input
-                                              type="checkbox"
-                                              checked={selectedDiscussions[discussionKey] || false}
-                                              onChange={() => toggleDiscussionSelect(course.id, lecture.id, discussion.id)}
-                                            />
-                                          </td>
-                                          <td className="discussion-name">{discussion.section}</td>
-                                          <td>{discussion.classId}</td>
-                                          <td>
-                                            <span className={`status-badge ${discussion.statusType}`}>
-                                              {discussion.status}
-                                            </span>
-                                          </td>
-                                          <td>{discussion.days}</td>
-                                          <td>{discussion.time}</td>
-                                          <td>{discussion.location}</td>
-                                          <td>{discussion.instructor}</td>
-                                        </tr>
-                                      );
-                                    })}
-
-                                    {isLectureExpanded && hasDiscussions && hasSelectedDiscussions(course.id) && (
-                                      <tr className="add-to-plan-row">
-                                        <td colSpan="8">
-                                          <button className="add-to-plan-button-full" onClick={() => handleAddToPlan(course.id)}>
-                                            + Add to Plan
-                                          </button>
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                    {(!activeTab[course.id] || activeTab[course.id] === 'details') && (
+                      <div className="course-details-content">
+                        <p>{course.description || 'No description available.'}</p>
+                        {course.requisites_text && (
+                          <div style={{ marginTop: '12px' }}>
+                            <strong>Requisites:</strong>
+                            <p>{course.requisites_text}</p>
+                          </div>
+                        )}
+                        <div className="add-to-plan-container">
+                           <button className="add-to-plan-button" onClick={() => alert('Add to plan functionality coming soon!')}>
+                               + Add to Plan
+                           </button>
                         </div>
                       </div>
                     )}
-
-                    {activeTab[course.id] === 'details' && (
-                      <div className="course-details-content">
-                        <p>Course details coming soon...</p>
-                      </div>
+                    
+                    {activeTab[course.id] === 'times' && (
+                        <div className="course-details-content">
+                            <p>Course time information is not yet available for this term.</p>
+                        </div>
                     )}
                   </div>
                 )}

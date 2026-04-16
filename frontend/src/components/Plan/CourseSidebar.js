@@ -20,6 +20,8 @@ function CourseSidebar({
   filteredCourses,
   courseLabel,
   onCourseDoubleClick,
+  showBookmarked,
+  onToggleBookmarked,
 }) {
   return (
     <aside className="plan-sidebar">
@@ -102,30 +104,43 @@ function CourseSidebar({
 
 
       <div className="sidebar-section">
-        <h3>Subject</h3>
+        <h3>Filters</h3>
         <label className="radio-label">
-          <input type="radio" name="course-filter" />
+          <input 
+            type="checkbox" 
+            name="course-filter" 
+            checked={showBookmarked} 
+            onChange={(e) => onToggleBookmarked && onToggleBookmarked(e.target.checked)} 
+          />
           <span>Bookmarked Courses</span>
         </label>
+        {/*
         <label className="radio-label">
           <input type="radio" name="course-filter" />
           <span>Ready to take (Prerequisite Met)</span>
         </label>
+        */}
       </div>
 
+      {/*
       <button className="show-details-btn">
         Show all Course Details
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M4 6L8 10L12 6" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
+      */}
 
       <div className="courses-list-sidebar">
         {coursesLoading && <div className="sidebar-hint">Loading courses…</div>}
         {coursesError && <div className="sidebar-hint error">{coursesError}</div>}
 
+        {!coursesLoading && !coursesError && showBookmarked && filteredCourses.length === 0 && (
+            <div className="sidebar-hint" style={{ padding: '20px', textAlign: 'center', color: '#666' }}>No courses bookmarked.</div>
+        )}
+
         {!coursesLoading && !coursesError && filteredCourses.map((c) => {
-          const colors = getSubjectColorCode(selectedSubject?.code || '');
+          const colors = getSubjectColorCode(c.subjectCode || selectedSubject?.code || '');
           return (
           <div
             key={c.id}
@@ -133,14 +148,14 @@ function CourseSidebar({
             style={{ backgroundColor: colors.bg, borderLeftColor: colors.border }}
             draggable="true"
             onDragStart={(e) => {
-              const dragData = { ...c, subjectCode: selectedSubject?.code || '' };
+              const dragData = { ...c, subjectCode: c.subjectCode || selectedSubject?.code || '' };
               e.dataTransfer.setData('application/json', JSON.stringify(dragData));
               e.dataTransfer.setData('text/plain', courseLabel(c));
             }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               if (onCourseDoubleClick) {
-                onCourseDoubleClick({ ...c, subjectCode: selectedSubject?.code || '' });
+                onCourseDoubleClick({ ...c, subjectCode: c.subjectCode || selectedSubject?.code || '' });
               }
             }}
           >
