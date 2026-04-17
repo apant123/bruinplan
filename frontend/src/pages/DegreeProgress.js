@@ -25,6 +25,11 @@ function DegreeProgress() {
   const [bookmarkedCourseIds, setBookmarkedCourseIds] = useState(new Set());
   const [suggestedCourses, setSuggestedCourses] = useState([]);
   const [expectedGraduation, setExpectedGraduation] = useState('');
+  
+  const [completedUnits, setCompletedUnits] = useState(0);
+  const [completedMajorUnits, setCompletedMajorUnits] = useState(0);
+  const [completedUpperUnits, setCompletedUpperUnits] = useState(0);
+  const [completedGeUnits, setCompletedGeUnits] = useState(0);
 
   const toggleDynamicReq = (idx) => {
       setCollapsedDynamicReqs(prev => ({ ...prev, [idx]: !prev[idx] }));
@@ -51,6 +56,36 @@ function DegreeProgress() {
 
         const classesTaken = userData.classes_taken || [];
         const takenLabels = classesTaken.map(c => typeof c === 'string' ? c : c?.course).filter(Boolean);
+
+        const headers = { 'X-User-Id': user.id };
+
+        // TOTAL UNITS
+        const unitsRes = await fetch('http://127.0.0.1:8000/api/units/total_units/', { headers });
+        if (unitsRes.ok) {
+          const data = await unitsRes.json();
+          setCompletedUnits(Number(data.total_units) || 0);
+        }
+
+        // MAJOR UNITS
+        const majorRes = await fetch('http://127.0.0.1:8000/api/units/major_units/', { headers });
+        if (majorRes.ok) {
+          const data = await majorRes.json();
+          setCompletedMajorUnits(Number(data.major_units) || 0);
+        }
+
+        // UPPER DIV UNITS
+        const upperRes = await fetch('http://127.0.0.1:8000/api/units/upper_units/', { headers });
+        if (upperRes.ok) {
+          const data = await upperRes.json();
+          setCompletedUpperUnits(Number(data.upper_units) || 0);
+        }
+
+        // GE UNITS
+        const geRes = await fetch('http://127.0.0.1:8000/api/units/ge_units/', { headers });
+        if (geRes.ok) {
+          const data = await geRes.json();
+          setCompletedGeUnits(Number(data.ge_units) || 0);
+        }
 
         if (takenLabels.length > 0) {
           const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-labels/`, {
@@ -186,10 +221,30 @@ function DegreeProgress() {
 
   // Sample data
   const progressData = [
-    { label: '180 Units', completed: 100, total: 180, color: 'blue' },
-    { label: 'General Education', completed: 39, total: 60, color: 'orange' },
-    { label: 'Major', completed: 74, total: 100, color: 'green' },
-    { label: 'Upper Division', completed: 39, total: 60, color: 'purple' }
+    {
+      label: '180 Units',
+      completed: completedUnits,
+      total: 180,
+      color: 'blue'
+    },
+    {
+      label: 'General Education',
+      completed: completedGeUnits,
+      total: 60,
+      color: 'orange'
+    },
+    {
+      label: 'Major',
+      completed: completedMajorUnits,
+      total: 100,
+      color: 'green'
+    },
+    {
+      label: 'Upper Division',
+      completed: completedUpperUnits,
+      total: 60,
+      color: 'purple'
+    }
   ];
 
   const requirements = [

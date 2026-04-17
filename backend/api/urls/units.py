@@ -1,9 +1,12 @@
 from django.urls import path
-from api.views.units import get_total_units
+from api.views.units import total_units, ge_units, upper_units, major_units
 
 urlpatterns = [
-    path("", get_total_units),
-    path("total_units/", get_total_units),
+    path("", total_units),
+    path("total_units/", total_units),
+    path("ge_units/", ge_units),
+    path("upper_units/", upper_units),
+    path("major_units/", major_units),
     
 
 ]

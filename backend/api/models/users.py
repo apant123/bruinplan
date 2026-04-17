@@ -31,8 +31,14 @@ class UserProfile(models.Model):
     completed_upper_div_units = models.IntegerField(null=True)
     
     total_units = models.DecimalField(max_digits=5, decimal_places=1, null=True)
-
+    ge_units = models.DecimalField(max_digits=5, decimal_places=1, null=True)
+    major_units = models.DecimalField(max_digits=5, decimal_places=1, null=True)
+    upper_units = models.DecimalField(max_digits=5, decimal_places=1, null=True)
+    
+    
+    
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True)
+    
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
