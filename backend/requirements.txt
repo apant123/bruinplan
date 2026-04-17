@@ -1,4 +1,4 @@
-ÿþÿþasgiref==3.10.0
+asgiref==3.10.0
 asttokens==2.4.1
 colorama==0.4.6
 comm==0.2.1
@@ -23,8 +23,6 @@ psycopg2-binary==2.9.11
 pure-eval==0.2.2
 Pygments==2.17.2
 python-dateutil==2.8.2
-#pywin32==306
-#pywin32==306
 pyzmq==25.1.2
 setuptools==80.9.0
 six==1.16.0
