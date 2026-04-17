@@ -1,4 +1,5 @@
-const API_BASE = process.env.REACT_APP_API_BASE || "/api";
+import { API_BASE as BASE } from './constants';
+const API_BASE = BASE + "/api";
 
 /* GET profile */
 export async function apiGetProfile(accessToken) {

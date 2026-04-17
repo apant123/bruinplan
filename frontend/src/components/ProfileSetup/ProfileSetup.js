@@ -65,8 +65,8 @@ function ProfileSetup() {
       }
 
       const endpoint = isGoogle 
-        ? 'http://localhost:8000/api/auth/createProfile/' 
-        : 'http://localhost:8000/api/auth/createUser/';
+        ? `${API_BASE}/api/auth/createProfile/` 
+        : `${API_BASE}/api/auth/createUser/`;
 
       const fetchOptions = {
         method: "POST",

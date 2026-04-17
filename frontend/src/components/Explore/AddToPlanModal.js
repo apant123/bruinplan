@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './AddToPlanModal.css';
+import { API_BASE } from '../../api/constants';
 
 const TERMS = [
   { value: 'FALL', label: 'Fall' },
@@ -33,7 +34,7 @@ function AddToPlanModal({ isOpen, course, userId, onClose }) {
       const fetchPlans = async () => {
         setLoadingPlans(true);
         try {
-          const res = await fetch('http://localhost:8000/api/plans/', {
+          const res = await fetch(`${API_BASE}/api/plans/`, {
             headers: { 'Content-Type': 'application/json', 'X-User-Id': userId }
           });
           if (res.ok) {
@@ -71,7 +72,7 @@ function AddToPlanModal({ isOpen, course, userId, onClose }) {
         status: 'planned'
       };
 
-      const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}/items/`, {
+      const res = await fetch(`${API_BASE}/api/plans/${selectedPlan.id}/items/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
         body: JSON.stringify(payload)

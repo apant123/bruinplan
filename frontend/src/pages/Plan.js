@@ -10,6 +10,7 @@ import DegreeProgress from '../components/Plan/DegreeProgress';
 import PrereqWarningModal from '../components/Plan/PrereqWarningModal';
 import CourseDetailModal from '../components/Plan/CourseDetailModal';
 import CreatePlanModal from '../components/Plan/CreatePlanModal';
+import { API_BASE } from '../api/constants';
 
 const TERMS = ['FALL', 'WINTER', 'SPRING', 'SUMMER_A', 'SUMMER_C'];
 const YEAR_COUNT = 4;
@@ -64,7 +65,7 @@ function Plan() {
       setSubjectsLoading(true);
       setSubjectsError('');
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/subjects', {
+        const res = await fetch(`${API_BASE}/api/subjects`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -93,7 +94,7 @@ function Plan() {
       setCoursesLoading(true);
       setCoursesError('');
       try {
-        const res = await fetch(`http://127.0.0.1:8000/api/courses/${selectedSubject.id}`, {
+        const res = await fetch(`${API_BASE}/api/courses/${selectedSubject.id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -115,7 +116,7 @@ function Plan() {
     if (!user?.id) return;
     async function fetchBookmarks() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/bookmarks/', {
+        const res = await fetch(`${API_BASE}/api/bookmarks/`, {
           headers: { 'X-User-Id': user.id }
         });
         if (res.ok) {
@@ -126,7 +127,7 @@ function Plan() {
           if (ids.length > 0) {
             const missingIds = ids.filter(id => !courseCache[id]);
             if (missingIds.length > 0) {
-              const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-ids/?ids=${missingIds.join(',')}`);
+              const cRes = await fetch(`${API_BASE}/api/courses/by-ids/?ids=${missingIds.join(',')}`);
               if (cRes.ok) {
                 const cData = await cRes.json();
                 const newCache = {};
@@ -231,7 +232,7 @@ function Plan() {
     setPlansLoading(true);
     setPlansError('');
     try {
-      const res = await fetch('http://localhost:8000/api/plans/', {
+      const res = await fetch(`${API_BASE}/api/plans/`, {
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -245,7 +246,7 @@ function Plan() {
 
       await Promise.all(plansList.map(async (plan) => {
         try {
-          const iRes = await fetch(`http://localhost:8000/api/plans/${plan.id}/items/`, {
+          const iRes = await fetch(`${API_BASE}/api/plans/${plan.id}/items/`, {
             headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
           });
           if (iRes.ok) {
@@ -263,7 +264,7 @@ function Plan() {
       const missing = [...allCourseIds].filter(id => !courseCache[id]);
       if (missing.length > 0) {
         try {
-          const cRes = await fetch(`http://localhost:8000/api/courses/by-ids/?ids=${missing.join(',')}`);
+          const cRes = await fetch(`${API_BASE}/api/courses/by-ids/?ids=${missing.join(',')}`);
           if (cRes.ok) {
             const cData = await cRes.json();
             const newCache = {};
@@ -299,7 +300,7 @@ function Plan() {
     setItemsLoading(true);
     setItemsError('');
     try {
-      const res = await fetch(`http://localhost:8000/api/plans/${planId}/items/`, {
+      const res = await fetch(`${API_BASE}/api/plans/${planId}/items/`, {
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -309,7 +310,7 @@ function Plan() {
       const missingIds = [...new Set(items.map(it => it.course_id))].filter(id => !courseCache[id]);
       if (missingIds.length > 0) {
         try {
-          const cRes = await fetch(`http://localhost:8000/api/courses/by-ids/?ids=${missingIds.join(',')}`);
+          const cRes = await fetch(`${API_BASE}/api/courses/by-ids/?ids=${missingIds.join(',')}`);
           if (cRes.ok) {
             const cData = await cRes.json();
             const newCache = {};
@@ -436,7 +437,7 @@ function Plan() {
 
       try {
         const res = await fetch(
-          `http://localhost:8000/api/plans/${planId}/items/${itemId}`,
+          `${API_BASE}/api/plans/${planId}/items/${itemId}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
@@ -499,7 +500,7 @@ function Plan() {
     }));
 
     try {
-      const res = await fetch(`http://localhost:8000/api/plans/${planId}/items/`, {
+      const res = await fetch(`${API_BASE}/api/plans/${planId}/items/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
         body: JSON.stringify({
@@ -581,7 +582,7 @@ function Plan() {
 
     try {
       const res = await fetch(
-        `http://localhost:8000/api/plans/${planId}/items/${itemId}`,
+        `${API_BASE}/api/plans/${planId}/items/${itemId}`,
         {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
@@ -639,7 +640,7 @@ function Plan() {
     setCreatePlanLoading(true);
     setCreatePlanError('');
     try {
-      const res = await fetch('http://localhost:8000/api/plans/', {
+      const res = await fetch(`${API_BASE}/api/plans/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
         body: JSON.stringify({ name: planName, start_year: startYr }),
@@ -665,7 +666,7 @@ function Plan() {
   const handleDeletePlan = async (planId) => {
     if (!window.confirm("Are you sure you want to delete this plan?")) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/plans/${planId}`, {
+      const res = await fetch(`${API_BASE}/api/plans/${planId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': user?.id },
       });
@@ -789,7 +790,7 @@ function Plan() {
                       return;
                     }
                     try {
-                      const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}`, {
+                      const res = await fetch(`${API_BASE}/api/plans/${selectedPlan.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json', 'X-User-Id': user?.id },
                         body: JSON.stringify({ name: trimmed }),
@@ -812,7 +813,7 @@ function Plan() {
                     return;
                   }
                   try {
-                    const res = await fetch(`http://localhost:8000/api/plans/${selectedPlan.id}`, {
+                    const res = await fetch(`${API_BASE}/api/plans/${selectedPlan.id}`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json', 'X-User-Id': user?.id },
                       body: JSON.stringify({ name: trimmed }),

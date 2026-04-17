@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { API_BASE } from '../api/constants';
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function AuthCallback() {
       
       // We have the session. Send to our backend googleLogin endpoint
       try {
-        const response = await fetch('http://localhost:8000/api/auth/googleLogin/', {
+        const response = await fetch(`${API_BASE}/api/auth/googleLogin/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

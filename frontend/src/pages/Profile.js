@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
+import { API_BASE } from '../api/constants';
 import './Profile.css';
 
 function Profile() {
@@ -16,7 +17,7 @@ function Profile() {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000/api';
+        const API_BASE = API_BASE + '/api';
         const res = await fetch(`${API_BASE}/subjects/`);
         const data = await res.json();
         setSubjects(data.subjects || []);
@@ -38,7 +39,7 @@ function Profile() {
     if (isEditing) {
       try {
         const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
-        const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000/api';
+        const API_BASE = API_BASE + '/api';
         
         const res = await fetch(`${API_BASE}/user/update/`, {
           method: "PATCH",

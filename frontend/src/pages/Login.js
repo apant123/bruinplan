@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabaseClient';
 import './Login.css';
 
+import { API_BASE } from '../api/constants';
+
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -12,7 +14,7 @@ function Login() {
 
   const loginUser = async ({ email, password }) => {
     const response = await fetch(
-      'http://localhost:8000/api/auth/loginUser/',
+      `${API_BASE}/api/auth/loginUser/`,
       {
         method: "POST",
         headers: {
