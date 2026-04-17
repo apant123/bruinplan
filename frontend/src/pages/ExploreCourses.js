@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
+import { API_BASE } from '../api/constants';
 import AddToPlanModal from '../components/Explore/AddToPlanModal';
 import GradeDistributionChart from '../components/Explore/GradeDistributionChart';
 import './ExploreCourses.css';
