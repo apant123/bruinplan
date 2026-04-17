@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../supabaseClient';
 import './Login.css';
 
 function Login() {
@@ -46,12 +47,39 @@ function Login() {
     
   };
 
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/auth/callback'
+      }
+    });
+
+    if (error) {
+      console.error("Error signing in with Google:", error.message);
+      alert("Error signing in with Google: " + error.message);
+    }
+  };
+
   return (
     <div className="login-container">
       <div className="login-content">
         <div className="login-header">
           <h1>Welcome Back</h1>
           <p>Sign in to continue planning your degree</p>
+        </div>
+
+        <button 
+          type="button" 
+          className="google-auth-btn" 
+          onClick={handleGoogleLogin}
+        >
+          <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google logo" className="google-logo" />
+          Continue with Google
+        </button>
+
+        <div className="auth-separator">
+          <span>or sign in with email</span>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>

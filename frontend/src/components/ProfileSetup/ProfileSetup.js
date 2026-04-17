@@ -15,7 +15,13 @@ import './ProfileSetup.css';
 function ProfileSetup() {
   const navigate = useNavigate();
   const { signup, isAuthenticated } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
+  
+  const [searchParams] = useState(new URLSearchParams(window.location.search));
+  const isGoogle = searchParams.get('google') === 'true';
+  const googleEmail = searchParams.get('email') || '';
+  const googleName = searchParams.get('name') || '';
+
+  const [currentStep, setCurrentStep] = useState(isGoogle ? 2 : 1);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   
@@ -24,10 +30,10 @@ function ProfileSetup() {
   const isNavigating = isCreatingUser || isAuthenticated;
 
   const [profileData, setProfileData] = useState({
-    firstName: '',
-    lastName: '',
+    firstName: isGoogle && googleName ? googleName.split(' ')[0] : '',
+    lastName: isGoogle && googleName ? googleName.split(' ').slice(1).join(' ') : '',
     password: '',
-    email: '',
+    email: isGoogle && googleEmail ? googleEmail : '',
     darsOption: '',
     uploadedFile: null,
     major: '',
@@ -58,13 +64,25 @@ function ProfileSetup() {
         formData.append('file', finalData.uploadedFile);
       }
 
-      const response = await fetch('http://localhost:8000/api/auth/createUser/', {   //passwords passed via http endpoint which is not good, but django runs http so not sure how to work around this. For now testing with http 
+      const endpoint = isGoogle 
+        ? 'http://localhost:8000/api/auth/createProfile/' 
+        : 'http://localhost:8000/api/auth/createUser/';
+
+      const fetchOptions = {
         method: "POST",
-        // headers: {
-        //     'Content-Type': 'application/json' 
-        // }, // Let browser set Content-Type for FormData
         body: formData,
-      });
+      };
+
+      if (isGoogle) {
+          const token = localStorage.getItem("accessToken");
+          if (token) {
+              fetchOptions.headers = {
+                  "Authorization": "Bearer " + token
+              };
+          }
+      }
+
+      const response = await fetch(endpoint, fetchOptions);
 
       const data = await response.json();
       if (response.ok) {
@@ -229,7 +247,7 @@ function ProfileSetup() {
           )}
 
           {currentStep === 2 && (
-            <BasicInformation onNext={handleNext} onBack={handleBack} />
+            <BasicInformation onNext={handleNext} onBack={handleBack} isGoogle={isGoogle} initialData={profileData} />
           )}
 
           {currentStep === 3 && (

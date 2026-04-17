@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import './BasicInformation.css';
 
-function BasicInformation({ onNext, onBack }) {
+function BasicInformation({ onNext, onBack, isGoogle, initialData }) {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
+    firstName: initialData?.firstName || '',
+    lastName: initialData?.lastName || '',
+    email: initialData?.email || '',
     password: ''
   });
 
@@ -20,14 +20,14 @@ function BasicInformation({ onNext, onBack }) {
 
   const validateEmail = (email) => {
     const validDomains = ['@g.ucla.edu', '@ucla.edu'];
+    if (isGoogle) return true; // Accept any domain if from Google auth
     return validDomains.some(domain => email.endsWith(domain));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validate UCLA email
-    if (!validateEmail(formData.email)) {
+    if (!isGoogle && !validateEmail(formData.email)) {
       setEmailError('Please use a valid UCLA email (@g.ucla.edu or @ucla.edu)');
       return;
     }
@@ -41,13 +41,12 @@ function BasicInformation({ onNext, onBack }) {
       ...formData,
       email: e.target.value
     });
-    // Clear error when user types
     if (emailError) {
       setEmailError('');
     }
   };
 
-  const isFormValid = formData.firstName && formData.lastName && formData.email && formData.password;
+  const isFormValid = formData.firstName && formData.lastName && formData.email && (isGoogle || formData.password);
 
   return (
     <div className="basic-info-card">
@@ -82,32 +81,34 @@ function BasicInformation({ onNext, onBack }) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">UCLA Email *</label>
+          <label className="form-label">Email *</label>
           <input
             type="email"
             name="email"
             className={`form-input ${emailError ? 'input-error' : ''}`}
-            placeholder="youremail@g.ucla.edu"
+            placeholder="youremail@ucla.edu"
             value={formData.email}
             onChange={handleEmailChange}
             required
+            disabled={isGoogle}
           />
           {emailError && <span className="error-message">{emailError}</span>}
         </div>
 
-        <div className="form-group">
-          <label className="form-label"> Password (Min. 8 characters, 1 uppercase, 1 number)*</label>
-          <input
-            type="text"
-            name="password"
-            className={`form-input`}
-            placeholder="passwoed"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
-          {emailError && <span className="error-message">{emailError}</span>}
-        </div>
+        {!isGoogle && (
+          <div className="form-group">
+            <label className="form-label"> Password (Min. 8 characters, 1 uppercase, 1 number)*</label>
+            <input
+              type="password"
+              name="password"
+              className={`form-input`}
+              placeholder="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        )}
 
         <div className="form-buttons">
           <button type="button" className="secondary-button" onClick={onBack}>

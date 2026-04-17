@@ -7,6 +7,7 @@ import Profile from './pages/Profile';
 import ExploreCourses from './pages/ExploreCourses';
 import Plan from './pages/Plan';
 import DegreeProgress from './pages/DegreeProgress';
+import AuthCallback from './pages/AuthCallback';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -19,6 +20,7 @@ function AppRoutes() {
 
   return (
     <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/signup" element={isAuthenticated ? <Navigate to="/profile" /> : <SignUp />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/profile" /> : <Login />} />
       <Route

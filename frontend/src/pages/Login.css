@@ -146,3 +146,52 @@
 .login-signup-link:hover {
   text-decoration: underline;
 }
+
+.google-auth-btn {
+  background: white;
+  color: #333;
+  border: 1px solid #dcdcdc;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.google-auth-btn:hover {
+  background: #fdfdfd;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.google-logo {
+  width: 20px;
+  height: 20px;
+}
+
+.auth-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 16px 0;
+}
+
+.auth-separator::before,
+.auth-separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.auth-separator span {
+  padding: 0 10px;
+  color: #888;
+  font-size: 14px;
+}

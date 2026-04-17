@@ -28,10 +28,11 @@ from dars_parser.extract_program import extract_major, extract_minor, extract_ex
 
 def verifyUser(request):
     '''
-    the jwt verification function to be called in secure routes; authentication performed by supabase
+    the jwt verification function using Supabase SDK to verify the access token.
     '''
-
-    JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_ANON_KEY")
+    
     auth_header = request.headers.get("Authorization")
 
     if not auth_header:
@@ -39,13 +40,18 @@ def verifyUser(request):
     
     try:
         jwt_val = auth_header.split(" ", 1)[1]
-
-        #HS256 is what supabase supports as JWT algo
-        payload = jwt.decode(jwt_val, JWT_SECRET, algorithms=["HS256"], audience="authenticated")
-    except Exception:
+        
+        # Initialize client and verify token via SDK
+        supabase_client = create_client(supabase_url, supabase_key)
+        user_res = supabase_client.auth.get_user(jwt_val)
+        
+        if not user_res or not user_res.user:
+            raise AuthenticationFailed("Invalid authentication token")
+            
+        return user_res.user.id
+    except Exception as e:
+        print(f"Token verification failed: {e}")
         raise AuthenticationFailed("invalid authentication token or malformed format")
-    
-    return payload["sub"]
     
 
 
@@ -448,4 +454,199 @@ def updateProfile(request):
         return Response({"message": "internal server error !!!!!!!!!!!"}, status = 500)
 
 
+@api_view(["POST"])
+@parser_classes([JSONParser])
+def googleLogin(request):
+    try:
+        print("GOOGLE LOGIN DATA:", request.data)
+        
+        try:
+            user_id = verifyUser(request)
+        except AuthenticationFailed as e:
+            return Response({"error": str(e)}, status=401)
+            
+        try:
+            user_profile = UserProfile.objects.get(id=user_id)
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"error": "User profile not found", "needs_setup": True},
+                status=202,
+            )
 
+        email = request.data.get("email", "")
+
+        payload = {
+            "user": {
+                "id": str(user_profile.id),
+                "email": getattr(user_profile, "email", email),
+                "name": getattr(user_profile, "name", None),
+                "major": getattr(user_profile, "major", None),
+                "minor": getattr(user_profile, "minor", None),
+                "graduation_year": getattr(user_profile, "year", getattr(user_profile, "graduation_year", None)),
+                "graduation_quarter": getattr(user_profile, "expected_grad", getattr(user_profile, "graduation_quarter", None)),
+                "units": getattr(user_profile, "units", None),
+                "total_units": getattr(user_profile, "total_units", None),
+                "gpa": getattr(user_profile, "gpa", None),
+                "dars_connected": bool(user_profile.classes_taken),
+                "created_at": user_profile.created_at,
+            },
+            "message": "User successfully logged in via Google",
+        }
+
+        return Response(payload, status=200)
+
+    except Exception as e:
+        traceback.print_exc()
+        return Response({"error": "Internal server error"}, status=500)
+
+
+@api_view(["POST"])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def createProfile(request):
+    try:
+        print("CREATE PROFILE REQUEST DATA:", request.data)
+        
+        try:
+            user_id = verifyUser(request)
+        except AuthenticationFailed as e:
+            return Response({"error": str(e)}, status=401)
+
+        # --- DARS Parsing ---
+        taken_list = []
+        requirements = []
+        dars_connected = False
+        gpa = None
+        total_units = None
+        d_major = None
+        d_minor = None
+        d_year = None
+        d_quarter = None
+        
+        if 'file' in request.FILES:
+            uploaded_file = request.FILES['file']
+            suffix = '.pdf' if uploaded_file.name.lower().endswith('.pdf') else '.txt'
+            tmp_path = None
+            
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    for chunk in uploaded_file.chunks():
+                        tmp.write(chunk)
+                    tmp_path = tmp.name
+
+                if suffix == '.pdf':
+                    text = extract_text_pdfminer(tmp_path)
+                else:
+                    with open(tmp_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        text = f.read()
+
+                taken_courses_data = extract_taken_courses(text)
+                taken_courses_set = {c for q, c in taken_courses_data}
+                
+                requirements = extract_requirements(text, taken_courses=taken_courses_set)
+                
+                taken_list = [{'quarter': q, 'course': c} for q, c in taken_courses_data]
+                dars_connected = True
+                gpa = extract_gpa_from_dars(text)
+                total_units = extract_total_units_from_dars(text)
+                d_major = extract_major(text)
+                d_minor = extract_minor(text)
+                d_year, d_quarter = extract_expected_graduation(text)
+
+            except Exception as e:
+                print(f"DARS parsing failed: {e}")
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+                return Response({'error': f"Failed to parse DARS file: {str(e)}"}, status=400)
+                
+            finally:
+                if tmp_path and os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+        request_raw_major = request.data.get('major', '')
+        request_raw_minor = request.data.get('minor', '')
+        request_raw_quarter = request.data.get('expected_grad', '')
+        request_raw_year = request.data.get('year', None)
+        
+        request_major = d_major if d_major else request_raw_major
+        request_minor = d_minor if d_minor else request_raw_minor
+        request_grad_quarter = d_quarter if d_quarter else request_raw_quarter
+        request_grad_year = d_year if d_year else request_raw_year
+
+        new_user = UserProfile(
+            id=user_id,
+            classes_taken=taken_list,
+            classes_needed=requirements,
+            major=request_major,
+            minor=request_minor,
+            expected_grad=request_grad_quarter,
+            year=request_grad_year,
+            gpa=gpa,
+            total_units=total_units,
+        )
+
+        try:
+            new_user.save()
+        except IntegrityError:
+            return Response(
+                {"id": user_id, "message": "UserProfile with this id already exists"},
+                status=400,
+            )
+
+        if hasattr(request.data, 'dict'):
+             cleaned = request.data.dict()
+        else:
+             cleaned = dict(request.data)
+        
+        for k, v in list(cleaned.items()):
+            if isinstance(v, str) and v.strip().lower() in ("none", "null", ""):
+                cleaned[k] = None
+
+        cleaned['major'] = request_major
+        cleaned['minor'] = request_minor
+        cleaned['expected_grad'] = request_grad_quarter
+        cleaned['year'] = request_grad_year
+
+        numeric_fields = {
+            'year': int,
+            'completed_lower_div_units': int,
+            'completed_upper_div_units': int,
+            'gpa': float
+        }
+        
+        for field, func in numeric_fields.items():
+            if field in cleaned and cleaned[field] is not None:
+                try:
+                    cleaned[field] = func(cleaned[field])
+                except (ValueError, TypeError):
+                    print(f"Failed to convert {field} '{cleaned[field]}' to {func.__name__}")
+                    del cleaned[field]
+        
+        try:
+            apply_profile_updates(new_user, cleaned)
+            new_user.save()
+        except Exception as e:
+            traceback.print_exc()
+
+        payload = {
+            "user": {
+                "id": str(new_user.id),
+                "email": request.data.get("email", ""),
+                "name": getattr(new_user, "name", None),
+                "major": getattr(new_user, "major", None),
+                "minor": getattr(new_user, "minor", None),
+                "graduation_year": getattr(new_user, "year", None),
+                "graduation_quarter": getattr(new_user, "expected_grad", None),
+                "units": getattr(new_user, "units", None),
+                "total_units": getattr(new_user, "total_units", None),
+                "gpa": getattr(new_user, "gpa", None),
+                "dars_connected": dars_connected,
+                "created_at": new_user.created_at,
+            },
+            "message": "User profile successfully created via Google",
+        }
+
+        return Response(payload, status=201)
+
+    except Exception as e:
+        traceback.print_exc()
+        return Response({"error": str(e)}, status=500)

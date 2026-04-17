@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from api.models.users import UserProfile  # adjust import if your path differs
 
 
+from supabase import create_client, Client
 import uuid
 
 def _get_user_uuid_from_supabase_jwt(request):
@@ -22,7 +23,8 @@ def _get_user_uuid_from_supabase_jwt(request):
         except ValueError:
             return None, Response({"error": "invalid X-User-Id format"}, status=401)
 
-    jwt_secret = os.getenv("SUPABASE_JWT_SECRET")
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_ANON_KEY")
     auth_header = request.headers.get("Authorization")
 
     if not auth_header:
@@ -30,14 +32,17 @@ def _get_user_uuid_from_supabase_jwt(request):
 
     try:
         token = auth_header.split(" ", 1)[1]
-        payload = jwt.decode(
-            token,
-            jwt_secret,
-            algorithms=["HS256"],           # works for legacy HS256 projects
-            audience="authenticated"
-        )
-        return payload["sub"], None
-    except Exception:
+        
+        # Initialize client and verify token via SDK
+        supabase_client: Client = create_client(supabase_url, supabase_key)
+        user_res = supabase_client.auth.get_user(token)
+        
+        if not user_res or not user_res.user:
+            return None, Response({"error": "Invalid authentication token"}, status=401)
+            
+        return user_res.user.id, None
+    except Exception as e:
+        print(f"Token verification failed: {e}")
         return None, Response({"error": "invalid jwt or invalid jwt format"}, status=401)
 
 
