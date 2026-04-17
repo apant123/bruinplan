@@ -47,7 +47,7 @@ function ExploreCourses() {
       setSubjectsLoading(true);
       setSubjectsError('');
       try {
-        const res = await fetch(`${API_BASE}/api/subjects', {
+        const res = await fetch(`${API_BASE}/api/subjects`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -73,7 +73,7 @@ function ExploreCourses() {
     if (!user?.id) return;
     async function fetchBookmarks() {
       try {
-        const res = await fetch(`${API_BASE}/api/bookmarks/', {
+        const res = await fetch(`${API_BASE}/api/bookmarks/`, {
           headers: { 'X-User-Id': user.id }
         });
         if (res.ok) {
