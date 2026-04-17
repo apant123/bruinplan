@@ -47,7 +47,7 @@ function ExploreCourses() {
       setSubjectsLoading(true);
       setSubjectsError('');
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/subjects', {
+        const res = await fetch(`${API_BASE}/api/subjects', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -73,7 +73,7 @@ function ExploreCourses() {
     if (!user?.id) return;
     async function fetchBookmarks() {
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/bookmarks/', {
+        const res = await fetch(`${API_BASE}/api/bookmarks/', {
           headers: { 'X-User-Id': user.id }
         });
         if (res.ok) {
@@ -84,7 +84,7 @@ function ExploreCourses() {
           if (ids.length > 0) {
             const missingIds = ids.filter(id => !courseCache[id]);
             if (missingIds.length > 0) {
-              const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-ids/?ids=${missingIds.join(',')}`);
+              const cRes = await fetch(`${API_BASE}/api/courses/by-ids/?ids=${missingIds.join(',')}`);
               if (cRes.ok) {
                 const cData = await cRes.json();
                 const newCache = {};
@@ -128,7 +128,7 @@ function ExploreCourses() {
     });
     
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/bookmarks/${courseId}/`, {
+      const res = await fetch(`${API_BASE}/api/bookmarks/${courseId}/`, {
         method,
         headers: { 'X-User-Id': user.id }
       });
@@ -154,7 +154,7 @@ function ExploreCourses() {
       setCoursesLoading(true);
       setCoursesError('');
       try {
-        const res = await fetch(`http://127.0.0.1:8000/api/courses/${selectedSubject.id}`, {
+        const res = await fetch(`${API_BASE}/api/courses/${selectedSubject.id}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });

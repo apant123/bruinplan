@@ -153,7 +153,7 @@ function Plan() {
       }
     }
     fetchBookmarks();
-  }, [user?.id]);
+  }, [user?.id, courseCache]);
 
   useEffect(() => {
     function onDocMouseDown(e) {
@@ -205,7 +205,7 @@ function Plan() {
         return label.includes(q) || title.includes(q) || desc.includes(q);
       })
       .slice(0, 60);
-  }, [courses, searchQuery, selectedSubject?.code, planCourseIds, showBookmarked, bookmarkedCourseIds, courseCache]);
+  }, [courses, searchQuery, selectedSubject?.code, planCourseIds, showBookmarked, bookmarkedCourseIds, courseCache, courseLabel]);
 
   const itemsByYearTerm = useMemo(() => {
     const grid = {};
@@ -226,7 +226,7 @@ function Plan() {
 
   const [planPreviews, setPlanPreviews] = useState({}); // { planId: [{ course_id, subjectCode, number, units }] }
 
-  const loadPlans = async () => {
+  const loadPlans = useCallback(async () => {
     const userId = user?.id;
     if (!userId) return;
     setPlansLoading(true);
@@ -288,11 +288,11 @@ function Plan() {
     } finally {
       setPlansLoading(false);
     }
-  };
+  }, [user?.id, courseCache]);
 
   useEffect(() => {
     if (view === 'all-plans' && user?.id) loadPlans();
-  }, [view, user?.id]);
+  }, [view, user?.id, loadPlans]);
 
   const loadPlanItems = async (planId) => {
     const userId = user?.id;
@@ -534,7 +534,7 @@ function Plan() {
       //   return copy;
       // });
     }
-  }, [user?.id, selectedPlan?.id, planItems, itemsByYearTerm, planCourseIds, courseCache, selectedSubject?.code]);
+  }, [user?.id, selectedPlan?.id, planItems, itemsByYearTerm, planCourseIds, selectedSubject?.code]);
 
   const handleDrop = (e, yearNum, term) => {
     e.preventDefault();

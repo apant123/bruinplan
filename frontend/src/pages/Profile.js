@@ -7,7 +7,7 @@ import './Profile.css';
 
 function Profile() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, updateProfile } = useAuth();
+  const { user, updateProfile } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editMajor, setEditMajor] = useState(user?.major || '');
@@ -17,8 +17,8 @@ function Profile() {
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const API_BASE = API_BASE + '/api';
-        const res = await fetch(`${API_BASE}/subjects/`);
+        const localUrl = API_BASE + '/api';
+        const res = await fetch(`${localUrl}/subjects/`);
         const data = await res.json();
         setSubjects(data.subjects || []);
       } catch (e) {
@@ -39,9 +39,9 @@ function Profile() {
     if (isEditing) {
       try {
         const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
-        const API_BASE = API_BASE + '/api';
+        const localUrl = API_BASE + '/api';
         
-        const res = await fetch(`${API_BASE}/user/update/`, {
+        const res = await fetch(`${localUrl}/user/update/`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",

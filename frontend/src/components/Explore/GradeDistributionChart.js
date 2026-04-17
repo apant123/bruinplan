@@ -14,7 +14,7 @@ function GradeDistributionChart({ courseId }) {
   useEffect(() => {
     async function fetchGrades() {
       try {
-        const res = await fetch(`http://127.0.0.1:8000/api/courses/${courseId}/grades/`);
+        const res = await fetch(`${API_BASE}/api/courses/${courseId}/grades/`);
         if (res.ok) {
           const json = await res.json();
           setData(json.grades || []);

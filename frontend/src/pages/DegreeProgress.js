@@ -43,7 +43,7 @@ function DegreeProgress() {
       setTakenCoursesLoading(true);
       setNeededCoursesLoading(true);
       try {
-        const userRes = await fetch('http://127.0.0.1:8000/api/user/', {
+        const userRes = await fetch(`${API_BASE}/api/user/', {
           headers: { 'X-User-Id': user.id }
         });
         if (!userRes.ok) throw new Error('Failed to fetch user profile');
@@ -60,35 +60,35 @@ function DegreeProgress() {
         const headers = { 'X-User-Id': user.id };
 
         // TOTAL UNITS
-        const unitsRes = await fetch('http://127.0.0.1:8000/api/units/total_units/', { headers });
+        const unitsRes = await fetch(`${API_BASE}/api/units/total_units/', { headers });
         if (unitsRes.ok) {
           const data = await unitsRes.json();
           setCompletedUnits(Number(data.total_units) || 0);
         }
 
         // MAJOR UNITS
-        const majorRes = await fetch('http://127.0.0.1:8000/api/units/major_units/', { headers });
+        const majorRes = await fetch(`${API_BASE}/api/units/major_units/', { headers });
         if (majorRes.ok) {
           const data = await majorRes.json();
           setCompletedMajorUnits(Number(data.major_units) || 0);
         }
 
         // UPPER DIV UNITS
-        const upperRes = await fetch('http://127.0.0.1:8000/api/units/upper_units/', { headers });
+        const upperRes = await fetch(`${API_BASE}/api/units/upper_units/', { headers });
         if (upperRes.ok) {
           const data = await upperRes.json();
           setCompletedUpperUnits(Number(data.upper_units) || 0);
         }
 
         // GE UNITS
-        const geRes = await fetch('http://127.0.0.1:8000/api/units/ge_units/', { headers });
+        const geRes = await fetch(`${API_BASE}/api/units/ge_units/', { headers });
         if (geRes.ok) {
           const data = await geRes.json();
           setCompletedGeUnits(Number(data.ge_units) || 0);
         }
 
         if (takenLabels.length > 0) {
-          const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-labels/`, {
+          const cRes = await fetch(`${API_BASE}/api/courses/by-labels/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -116,7 +116,7 @@ function DegreeProgress() {
 
         const neededLabelsArr = Array.from(neededLabels);
         if (neededLabelsArr.length > 0) {
-          const cRes = await fetch(`http://127.0.0.1:8000/api/courses/by-labels/`, {
+          const cRes = await fetch(`${API_BASE}/api/courses/by-labels/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -133,7 +133,7 @@ function DegreeProgress() {
           setNeededCourseCache(labelToCourse);
 
           // Build suggestions based on prerequisites natively
-          const subjRes = await fetch('http://127.0.0.1:8000/api/subjects/', { headers: { 'Content-Type': 'application/json' } });
+          const subjRes = await fetch(`${API_BASE}/api/subjects/', { headers: { 'Content-Type': 'application/json' } });
           const subjData = await subjRes.ok ? await subjRes.json() : { subjects: [] };
           const subjectMap = {};
           subjData.subjects?.forEach(s => { subjectMap[s.name.toLowerCase()] = s.code.toUpperCase(); });
@@ -166,7 +166,7 @@ function DegreeProgress() {
           setSuggestedCourses(suggested);
         }
 
-        const bmRes = await fetch('http://127.0.0.1:8000/api/bookmarks/', {
+        const bmRes = await fetch(`${API_BASE}/api/bookmarks/', {
           headers: { 'X-User-Id': user.id }
         });
         if (bmRes.ok) {
@@ -201,7 +201,7 @@ function DegreeProgress() {
     });
     
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/bookmarks/${courseId}/`, {
+      const res = await fetch(`${API_BASE}/api/bookmarks/${courseId}/`, {
         method,
         headers: { 'X-User-Id': user.id }
       });
