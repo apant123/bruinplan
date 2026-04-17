@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE } from '../../api/constants';
 import NavBar from '../NavBar';
 import ProgressBar from './ProgressBar';
 import WelcomePage from './WelcomePage';
